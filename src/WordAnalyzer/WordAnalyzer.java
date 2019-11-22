@@ -1,6 +1,9 @@
-package WordAnalyze;
+package WordAnalyzer;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.PushbackReader;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,11 +21,14 @@ public class WordAnalyzer {
     private Map<String, Symbols> reserves = new HashMap<String, Symbols>() {
         {
             put("const", Symbols.Const);
+            put("char", Symbols.Char);
             put("int", Symbols.Int);
             put("float", Symbols.Float);
+            put("double", Symbols.Double);
             put("void", Symbols.Void);
             put("if", Symbols.If);
             put("else", Symbols.Else);
+            put("for", Symbols.For);
             put("while", Symbols.While);
             put("main", Symbols.Main);
             put("return", Symbols.Return);
@@ -30,51 +36,20 @@ public class WordAnalyzer {
             put("printf", Symbols.Printf);
         }
     };
-
-    private Map<String, Symbols> errors = new HashMap<String, Symbols>() {
-        {
-            put("const", Symbols.Const);
-            put("int", Symbols.Int);
-            put("void", Symbols.Void);
-            put("if", Symbols.If);
-            put("else", Symbols.Else);
-            put("while", Symbols.While);
-            put("main", Symbols.Main);
-            put("return", Symbols.Return);
-            put("scanf", Symbols.Scanf);
-            put("printf", Symbols.Printf);
-        }
-    };
-
-    public enum Symbols {
-        Identifier, Const, Int, Float, Void,
-        If, Else, While, Main, Return,
-        Printf, Scanf, Plus, Multi, Minus, Div,
-        UnsignedInt, UnsignedFloat, Greater, GreaterOrEqual,
-        Less, LessOrEqual, NotEqual, Equal, StringLiteral,
-        LeftBrace, RightBrace, LeftParenthesis, RightParenthesis,
-        Comma, Semicolon, Assign, EOF, Unknown
-    }
-
-    public enum Errors {
-        EOF, InvalidIdentifier, UnknownSeparator, NumberStartFromZero, NumberOutOfRange,
-        FloatOutOfRange, InvalidStringLiteral, InvalidEscape, Internal, ExclamationError
-    }
-
-    public WordAnalyzer(String source) throws FileNotFoundException {
-        reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
-    }
 
     public String getType() {
         switch (symbol) {
             case Identifier:
                 return "标识符";
             case Const:
+            case Char:
             case Int:
             case Float:
+            case Double:
             case Void:
             case If:
             case Else:
+            case For:
             case While:
             case Main:
             case Return:
@@ -95,6 +70,8 @@ public class WordAnalyzer {
             case Comma:
             case Semicolon:
             case Assign:
+            case LeftBracket:
+            case RightBracket:
                 return "分界符";
             case UnsignedInt:
                 return "无符号整数常量";
@@ -110,6 +87,26 @@ public class WordAnalyzer {
             default:
                 return "未知";
         }
+    }
+
+    public enum Errors {
+        EOF, InvalidIdentifier, UnknownSeparator, NumberStartFromZero, NumberOutOfRange,
+        FloatOutOfRange, InvalidStringLiteral, InvalidEscape, Internal, ExclamationError
+    }
+
+    public WordAnalyzer(String source) throws FileNotFoundException {
+        reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
+    }
+
+    public String transDoubleNum(boolean subzero) {
+        double num = new Double(token);
+        if (subzero) {
+            num = -num;
+        }
+        if (Double.isInfinite(num)) {
+            error = Errors.FloatOutOfRange;
+        }
+        return Long.toBinaryString(Double.doubleToLongBits(num));
     }
 
     private Symbols isReserved() {
@@ -138,6 +135,15 @@ public class WordAnalyzer {
         return Integer.toBinaryString(Float.floatToIntBits(num));
     }
 
+    private boolean isNewLine() {
+        if (ch == '\n') {
+            ++lineOffset;
+            wordOffset = 0;
+            return true;
+        }
+        return false;
+    }
+
     private void read() {
         try {
             ch = (char) reader.read();
@@ -154,39 +160,6 @@ public class WordAnalyzer {
 
     private boolean isSpace() {
         return ch == ' ' || ch == '\r';
-    }
-
-    private boolean isNewLine() {
-        if(ch == '\n') {
-            ++lineOffset;
-            wordOffset = 0;
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isTab() {
-        return ch == '\t';
-    }
-
-    private boolean isLetter() {
-        return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_';
-    }
-
-    private boolean isDigit() {
-        return ch >= '0' && ch <= '9';
-    }
-
-    private boolean isZero() {
-        return ch == '0';
-    }
-
-    private void clearToken() {
-        token = "";
-    }
-
-    private void catToken() {
-        token = token + ch;
     }
 
     public Symbols getsym() throws IOException {
@@ -299,6 +272,12 @@ public class WordAnalyzer {
         } else if (ch == ')') {
             catToken();
             symbol = Symbols.RightParenthesis;
+        } else if (ch == '[') {
+            catToken();
+            symbol = Symbols.LeftBracket;
+        } else if (ch == ']') {
+            catToken();
+            symbol = Symbols.RightBracket;
         } else if (ch == '{') {
             catToken();
             symbol = Symbols.LeftBrace;
@@ -313,12 +292,71 @@ public class WordAnalyzer {
             symbol = Symbols.Semicolon;
         } else if (ch == '/') {
             catToken();
-            symbol = Symbols.Div;
+            read();
+            if (ch == '/') {
+                while (ch != '\n') {
+                    read();
+                }
+                getsym();
+            } else if (ch == '*') {
+                label1:
+                while (true) {
+                    read();
+                    while (ch != '*') {
+                        read();
+                    }
+                    while (ch == '*') {
+                        read();
+                        if (ch == '/') {
+                            break label1;
+                        }
+                    }
+                }
+                getsym();
+            } else {
+                unread();
+                symbol = Symbols.Div;
+            }
         } else if (ch == 65535) {
             symbol = Symbols.EOF;
         } else {
             symbol = Symbols.Unknown;
         }
         return symbol;
+    }
+
+    private boolean isTab() {
+        return ch == '\t';
+    }
+
+    private boolean isLetter() {
+        return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || ch == '_';
+    }
+
+    private boolean isDigit() {
+        return ch >= '0' && ch <= '9';
+    }
+
+    private boolean isZero() {
+        return ch == '0';
+    }
+
+    private void clearToken() {
+        token = "";
+    }
+
+    private void catToken() {
+        token = token + ch;
+    }
+
+    public enum Symbols {
+        Identifier, Const, Int, Float, Void,
+        If, Else, While, Main, Return,
+        Printf, Scanf, Plus, Multi, Minus, Div,
+        UnsignedInt, UnsignedFloat, Greater, GreaterOrEqual,
+        Less, LessOrEqual, NotEqual, Equal, StringLiteral,
+        LeftBrace, RightBrace, LeftParenthesis, RightParenthesis,
+        Comma, Semicolon, Assign, EOF, Unknown,
+        Char, Double, LeftBracket, RightBracket, For
     }
 }
