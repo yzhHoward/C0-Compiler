@@ -13,48 +13,58 @@ public class WordAnalyzer {
     public String token;
     public String num;
     public int count = 0;
-    public Symbols symbol;
-    public Errors error;
+    public WordSymbol symbol;
     public int lineOffset = 1;
     public int wordOffset = 0;
     private char ch;
-    private Map<String, Symbols> reserves = new HashMap<String, Symbols>() {
+    private Map<String, WordSymbol> reserves = new HashMap<String, WordSymbol>() {
         {
-            put("const", Symbols.Const);
-            put("char", Symbols.Char);
-            put("int", Symbols.Int);
-            put("float", Symbols.Float);
-            put("double", Symbols.Double);
-            put("void", Symbols.Void);
-            put("if", Symbols.If);
-            put("else", Symbols.Else);
-            put("for", Symbols.For);
-            put("while", Symbols.While);
-            put("main", Symbols.Main);
-            put("return", Symbols.Return);
-            put("scanf", Symbols.Scanf);
-            put("printf", Symbols.Printf);
+            put("const", WordSymbol.Const);
+            put("void", WordSymbol.Void);
+            put("int", WordSymbol.Int);
+            put("char", WordSymbol.Char);
+            put("double", WordSymbol.Double);
+            put("struct", WordSymbol.Struct);
+            put("if", WordSymbol.If);
+            put("else", WordSymbol.Else);
+            put("switch", WordSymbol.Switch);
+            put("case", WordSymbol.Case);
+            put("default", WordSymbol.Default);
+            put("while", WordSymbol.While);
+            put("for", WordSymbol.For);
+            put("do", WordSymbol.Do);
+            put("return", WordSymbol.Return);
+            put("break", WordSymbol.Break);
+            put("continue", WordSymbol.Continue);
+            put("scan", WordSymbol.Scan);
+            put("print", WordSymbol.Print);
         }
     };
 
+    public WordAnalyzer(String source) {
+        try {
+            reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
     public String getType() {
         switch (symbol) {
+            case UnsignedInt:
+                return "无符号整数常量";
             case Identifier:
                 return "标识符";
             case Const:
-            case Char:
-            case Int:
-            case Float:
-            case Double:
             case Void:
+            case Int:
+            case Char:
             case If:
             case Else:
-            case For:
             case While:
-            case Main:
             case Return:
-            case Printf:
-            case Scanf:
+            case Print:
+            case Scan:
                 return "关键字";
             case Plus:
             case Multi:
@@ -70,13 +80,7 @@ public class WordAnalyzer {
             case Comma:
             case Semicolon:
             case Assign:
-            case LeftBracket:
-            case RightBracket:
                 return "分界符";
-            case UnsignedInt:
-                return "无符号整数常量";
-            case UnsignedFloat:
-                return "无符号浮点数常量";
             case GreaterOrEqual:
             case LessOrEqual:
             case Equal:
@@ -89,59 +93,14 @@ public class WordAnalyzer {
         }
     }
 
-    public enum Errors {
-        EOF, InvalidIdentifier, UnknownSeparator, NumberStartFromZero, NumberOutOfRange,
-        FloatOutOfRange, InvalidStringLiteral, InvalidEscape, Internal, ExclamationError
-    }
-
-    public WordAnalyzer(String source) throws FileNotFoundException {
-        reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
-    }
-
-    public String transDoubleNum(boolean subzero) {
-        double num = new Double(token);
-        if (subzero) {
-            num = -num;
+    private void unread() {
+        try {
+            reader.unread(ch);
+            --wordOffset;
+        } catch (IOException e) {
+            System.out.println("不能unread!");
+            e.printStackTrace();
         }
-        if (Double.isInfinite(num)) {
-            error = Errors.FloatOutOfRange;
-        }
-        return Long.toBinaryString(Double.doubleToLongBits(num));
-    }
-
-    private Symbols isReserved() {
-        Symbols symbol = reserves.get(token);
-        if (symbol == null) {
-            symbol = Symbols.Identifier;
-        }
-        return symbol;
-    }
-
-    public String transIntNum(boolean subzero) {
-        if (subzero) {
-            return new BigInteger(token, 10).negate().toString(2);
-        }
-        return new BigInteger(token, 10).toString(2);
-    }
-
-    public String transFloatNum(boolean subzero) {
-        float num = new Float(token);
-        if (subzero) {
-            num = -num;
-        }
-        if (Float.isInfinite(num)) {
-            error = Errors.FloatOutOfRange;
-        }
-        return Integer.toBinaryString(Float.floatToIntBits(num));
-    }
-
-    private boolean isNewLine() {
-        if (ch == '\n') {
-            ++lineOffset;
-            wordOffset = 0;
-            return true;
-        }
-        return false;
     }
 
     private void read() {
@@ -153,16 +112,15 @@ public class WordAnalyzer {
         }
     }
 
-    private void unread() throws IOException {
-        reader.unread(ch);
-        --wordOffset;
+    private WordSymbol isReserved() {
+        WordSymbol symbol = reserves.get(token);
+        if (symbol == null) {
+            symbol = WordSymbol.Identifier;
+        }
+        return symbol;
     }
 
-    private boolean isSpace() {
-        return ch == ' ' || ch == '\r';
-    }
-
-    public Symbols getsym() throws IOException {
+    public WordSymbol getsym() throws WordException {
         ++count;
         read();
         clearToken();
@@ -177,119 +135,184 @@ public class WordAnalyzer {
             unread();
             symbol = isReserved();
         } else if (isDigit()) {
-            boolean decimal = false;
             if (isZero()) {
                 catToken();
                 read();
                 if (isDigit()) {
-                    symbol = Symbols.Unknown;
-                    error = Errors.NumberStartFromZero;
-                }
-            }
-            while (isDigit() || ch == '.') {
-                if (ch == '.') {
-                    if (!decimal) {
-                        decimal = true;
-                    } else {
-                        error = Errors.UnknownSeparator;
-                        return Symbols.Unknown;
+                    symbol = WordSymbol.Unknown;
+                    throw new WordException(Errors.NumberStartFromZero);
+                } else if (ch == 'x' || ch == 'X') {
+                    catToken();
+                    read();
+                    while (isHexadecimalDigit()) {
+                        catToken();
+                        read();
                     }
+                    if (isLetter()) {
+                        throw new WordException(Errors.InvalidHexNumber);
+                    }
+                    unread();
+                    if (checkHexOverFlow()) {
+                        throw new WordException(Errors.NumberOutOfRange);
+                    }
+                } else if (isLetter()) {
+                    throw new WordException(Errors.InvalidIdentifier);
                 }
-                catToken();
-                read();
-            }
-            unread();
-            if (!decimal) {
-                num = transIntNum(false);
-                symbol = Symbols.UnsignedInt;
-                if (num.length() > 32) {
-                    error = Errors.NumberOutOfRange;
-                }
+                symbol = WordSymbol.UnsignedInt;
             } else {
-                num = transFloatNum(false);
-                symbol = Symbols.UnsignedFloat;
+                while (isDigit()) {
+                    catToken();
+                    read();
+                }
+                if (isLetter()) {
+                    throw new WordException(Errors.InvalidIdentifier);
+                }
+                unread();
+                if (checkIntOverFlow()) {
+                    throw new WordException(Errors.NumberOutOfRange);
+                }
+                symbol = WordSymbol.UnsignedInt;
             }
         } else if (ch == '"') {
             read();
             while (ch != '"') {
+                if (ch == '\\') {
+                    read();
+                    if (ch == 'x') {
+                        String str = "";
+                        read();
+                        str += ch;
+                        read();
+                        str += ch;
+                        ch = (char) Integer.parseInt(str, 16);
+                    } else if (isEscapeChar()) {
+                        switch (ch) {
+                            case 'n':
+                                ch = '\n';
+                                break;
+                            case 'r':
+                                ch = '\r';
+                                break;
+                            case 't':
+                                ch = '\t';
+                                break;
+                        }
+                    } else {
+                        throw new WordException(Errors.InvalidEscape);
+                    }
+                } else if (ch == 65535) {
+                    throw new WordException(Errors.InvalidStringLiteral);
+                } else if (ch != '\t' && (ch <= 31 || ch >= 127)) {
+                    throw new WordException(Errors.InvalidStringLiteral);
+                }
                 catToken();
                 read();
             }
-            symbol = Symbols.StringLiteral;
+            symbol = WordSymbol.StringLiteral;
+        } else if (ch == '\'') {
+            read();
+            if (ch == '\\') {
+                read();
+                if (ch == 'x') {
+                    String str = "0x";
+                    read();
+                    str += ch;
+                    read();
+                    str += ch;
+                    ch = (char) Integer.parseInt(str);
+                } else if (isEscapeChar()) {
+                    switch (ch) {
+                        case 'n':
+                            ch = '\n';
+                            break;
+                        case 'r':
+                            ch = '\r';
+                            break;
+                        case 't':
+                            ch = '\t';
+                            break;
+                    }
+                } else {
+                    throw new WordException(Errors.InvalidEscape);
+                }
+                catToken();
+                read();
+            } else if (ch == '\'') {
+                read();
+            } else {
+                catToken();
+                read();
+            }
+            symbol = WordSymbol.CharLiteral;
+            System.out.println(token);
         } else if (ch == '=') {
             catToken();
             read();
             if (ch == '=') {
-                symbol = Symbols.Equal;
+                symbol = WordSymbol.Equal;
                 catToken();
             } else {
                 unread();
-                symbol = Symbols.Assign;
+                symbol = WordSymbol.Assign;
             }
         } else if (ch == '!') {
             catToken();
             read();
             if (ch == '=') {
-                symbol = Symbols.NotEqual;
+                symbol = WordSymbol.NotEqual;
                 catToken();
             } else {
                 unread();
-                symbol = Symbols.Unknown;
-                error = Errors.UnknownSeparator;
+                symbol = WordSymbol.Unknown;
+                throw new WordException(Errors.UnknownSeparator);
             }
         } else if (ch == '<') {
             catToken();
             read();
             if (ch == '=') {
-                symbol = Symbols.LessOrEqual;
+                symbol = WordSymbol.LessOrEqual;
                 catToken();
             } else {
                 unread();
-                symbol = Symbols.Less;
+                symbol = WordSymbol.Less;
             }
         } else if (ch == '>') {
             catToken();
             read();
             if (ch == '=') {
-                symbol = Symbols.GreaterOrEqual;
+                symbol = WordSymbol.GreaterOrEqual;
                 catToken();
             } else {
                 unread();
-                symbol = Symbols.GreaterOrEqual;
+                symbol = WordSymbol.GreaterOrEqual;
             }
         } else if (ch == '+') {
             catToken();
-            symbol = Symbols.Plus;
+            symbol = WordSymbol.Plus;
         } else if (ch == '-') {
             catToken();
-            symbol = Symbols.Minus;
+            symbol = WordSymbol.Minus;
         } else if (ch == '*') {
             catToken();
-            symbol = Symbols.Multi;
+            symbol = WordSymbol.Multi;
         } else if (ch == '(') {
             catToken();
-            symbol = Symbols.LeftParenthesis;
+            symbol = WordSymbol.LeftParenthesis;
         } else if (ch == ')') {
             catToken();
-            symbol = Symbols.RightParenthesis;
-        } else if (ch == '[') {
-            catToken();
-            symbol = Symbols.LeftBracket;
-        } else if (ch == ']') {
-            catToken();
-            symbol = Symbols.RightBracket;
+            symbol = WordSymbol.RightParenthesis;
         } else if (ch == '{') {
             catToken();
-            symbol = Symbols.LeftBrace;
+            symbol = WordSymbol.LeftBrace;
         } else if (ch == '}') {
             catToken();
-            symbol = Symbols.RightBrace;
+            symbol = WordSymbol.RightBrace;
         } else if (ch == ',') {
             catToken();
-            symbol = Symbols.Comma;
+            symbol = WordSymbol.Comma;
         } else if (ch == ';') {
             catToken();
-            symbol = Symbols.Semicolon;
+            symbol = WordSymbol.Semicolon;
         } else if (ch == '/') {
             catToken();
             read();
@@ -303,26 +326,63 @@ public class WordAnalyzer {
                 while (true) {
                     read();
                     while (ch != '*') {
+                        if (ch == 65535) {
+                            throw new WordException(Errors.UnfinishedComment);
+                        }
                         read();
                     }
                     while (ch == '*') {
                         read();
                         if (ch == '/') {
                             break label1;
+                        } else if (ch == 65535) {
+                            throw new WordException(Errors.UnfinishedComment);
                         }
                     }
                 }
                 getsym();
             } else {
                 unread();
-                symbol = Symbols.Div;
+                symbol = WordSymbol.Div;
             }
         } else if (ch == 65535) {
-            symbol = Symbols.EOF;
+            symbol = WordSymbol.EOF;
         } else {
-            symbol = Symbols.Unknown;
+            symbol = WordSymbol.Unknown;
         }
         return symbol;
+    }
+
+    private boolean checkIntOverFlow() {
+        return new BigInteger(token, 10).bitLength() >= 32;
+    }
+
+    private boolean checkHexOverFlow() {
+        BigInteger bigInteger = new BigInteger(token.substring(2), 16);
+        String str = bigInteger.toString(16);
+        token = "0x" + str;
+        return bigInteger.bitLength() >= 32;
+    }
+
+    private boolean isNewLine() {
+        if (ch == '\n') {
+            ++lineOffset;
+            wordOffset = 0;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isEscapeChar() {
+        return ch == '\\' || ch == '\'' || ch == '"' || ch == 'n' || ch == 'r' || ch == 't';
+    }
+
+    private boolean isSpace() {
+        return ch == ' ' || ch == '\r';
+    }
+
+    private boolean isHexadecimalDigit() {
+        return isDigit() || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
     }
 
     private boolean isTab() {
@@ -337,6 +397,12 @@ public class WordAnalyzer {
         return ch >= '0' && ch <= '9';
     }
 
+    public enum Errors {
+        InvalidIdentifier, UnknownSeparator, NumberStartFromZero, NumberOutOfRange,
+        InvalidHexNumber, InvalidStringLiteral, InvalidEscape, Internal, ExclamationError,
+        UnfinishedComment
+    }
+
     private boolean isZero() {
         return ch == '0';
     }
@@ -347,16 +413,5 @@ public class WordAnalyzer {
 
     private void catToken() {
         token = token + ch;
-    }
-
-    public enum Symbols {
-        Identifier, Const, Int, Float, Void,
-        If, Else, While, Main, Return,
-        Printf, Scanf, Plus, Multi, Minus, Div,
-        UnsignedInt, UnsignedFloat, Greater, GreaterOrEqual,
-        Less, LessOrEqual, NotEqual, Equal, StringLiteral,
-        LeftBrace, RightBrace, LeftParenthesis, RightParenthesis,
-        Comma, Semicolon, Assign, EOF, Unknown,
-        Char, Double, LeftBracket, RightBracket, For
     }
 }

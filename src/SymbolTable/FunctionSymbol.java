@@ -1,13 +1,21 @@
 package SymbolTable;
 
-public class FunctionSymbol extends Symbol {
-    String[] args;
-    String[] locals;
-    int address;
-    boolean returned;
+import java.util.HashMap;
 
-    FunctionSymbol(SymbolTables.SymbolType type, int offset) {
-        this.type = type;
-        this.offset.add(offset);
+public class FunctionSymbol extends Symbol {
+    HashMap<String, VariableSymbol> argsMap;
+
+    public FunctionSymbol(String name, SymbolType symbolType, DataType dataType,
+                          int lineOffset, int wordOffset) {
+        super(name, symbolType, dataType, 1, lineOffset, wordOffset);
+        this.argsMap = new HashMap<>();
+    }
+
+    public boolean addArgs(String token, VariableSymbol variableSymbols) {
+        if (argsMap.containsKey(token)) {
+            return false;
+        }
+        argsMap.put(token, variableSymbols);
+        return true;
     }
 }

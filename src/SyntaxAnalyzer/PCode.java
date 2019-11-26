@@ -1,4 +1,4 @@
-package SyntaxAnalyze;
+package SyntaxAnalyzer;
 
 import java.io.Serializable;
 

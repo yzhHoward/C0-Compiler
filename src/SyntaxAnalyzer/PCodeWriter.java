@@ -1,4 +1,4 @@
-package NewSyntaxAnalyzer;
+package SyntaxAnalyzer;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;

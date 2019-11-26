@@ -1,19 +1,26 @@
 package SymbolTable;
 
 public class VariableSymbol extends Symbol {
+    boolean isConst;
     String value;
-    int level;
 
-    VariableSymbol(SymbolTables.SymbolType type, int level, int offset) {
-        this.type = type;
-        this.level = level;
-        this.offset.add(offset);
+    public VariableSymbol(String name, SymbolType symbolType, DataType dataType,
+                          int lineOffset, int wordOffset) {
+        super(name, symbolType, dataType, 1, lineOffset, wordOffset);
+        this.isConst = false;
     }
 
-    VariableSymbol(SymbolTables.SymbolType type, String value, int level, int offset) {
-        this.type = type;
+    public VariableSymbol(String name, SymbolType symbolType, DataType dataType,
+                          int lineOffset, int wordOffset, String value) {
+        super(name, symbolType, dataType, 1, lineOffset, wordOffset);
+        this.isConst = false;
         this.value = value;
-        this.level = level;
-        this.offset.add(offset);
+    }
+
+    public VariableSymbol(String name, SymbolType symbolType, DataType dataType,
+                          int lineOffset, int wordOffset, boolean isConst, String value) {
+        super(name, symbolType, dataType, 1, lineOffset, wordOffset);
+        this.isConst = isConst;
+        this.value = value;
     }
 }

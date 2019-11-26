@@ -1,18 +1,18 @@
-package NewSyntaxAnalyzer;
+package SyntaxAnalyzer;
 
-import NewSymbolTable.FunctionSymbols;
-import NewSymbolTable.SymbolTable;
-import NewSymbolTable.Symbols;
-import SymbolTable.SymbolTables;
+import SymbolTable.DataType;
+import SymbolTable.FunctionSymbol;
+import SymbolTable.Symbol;
+import SymbolTable.SymbolType;
 import WordAnalyzer.WordAnalyzer;
+import WordAnalyzer.WordException;
+import WordAnalyzer.WordSymbol;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 
-import static NewSymbolTable.SymbolTable.*;
-import static NewSyntaxAnalyzer.Utils.tokenToDataType;
-import static SymbolTable.SymbolTables.nextLevel;
+import static SymbolTable.SymbolTable.*;
+import static SyntaxAnalyzer.Utils.tokenToDataType;
 
 public class SyntaxAnalyzer {
     public String token;
@@ -21,11 +21,10 @@ public class SyntaxAnalyzer {
     public Errors error;
     private WordAnalyzer wordAnalyzer;
     private PCodeWriter pCodeWriter;
-    private WordAnalyzer.Symbols symbol;
+    private WordSymbol wordSymbol;
     private ArrayList<NextWord> buf = new ArrayList<>();
     private int cursor = -1;
     private int level = 0;
-    private String num;
 
     public SyntaxAnalyzer(WordAnalyzer wordAnalyzer) {
         this.wordAnalyzer = wordAnalyzer;
@@ -35,7 +34,7 @@ public class SyntaxAnalyzer {
         ++cursor;
         NextWord nextWord = buf.get(cursor);
         token = nextWord.token;
-        symbol = nextWord.symbolType;
+        wordSymbol = nextWord.symbolType;
         lineOffset = nextWord.lineOffset;
         wordOffset = nextWord.wordOffset;
     }
@@ -45,13 +44,13 @@ public class SyntaxAnalyzer {
             --cursor;
             NextWord nextWord = buf.get(cursor);
             token = nextWord.token;
-            symbol = nextWord.symbolType;
+            wordSymbol = nextWord.symbolType;
             lineOffset = nextWord.lineOffset;
             wordOffset = nextWord.wordOffset;
         } else if (cursor == 0) {
             --cursor;
             token = null;
-            symbol = null;
+            wordSymbol = null;
             lineOffset = 1;
             wordOffset = 0;
         } else {
@@ -59,24 +58,36 @@ public class SyntaxAnalyzer {
         }
     }
 
-    public void start() throws IOException {
-        wordAnalyzer.getsym();
-        while (wordAnalyzer.symbol != WordAnalyzer.Symbols.EOF) {
-            buf.add(new NextWord(wordAnalyzer.token, wordAnalyzer.symbol, wordAnalyzer.lineOffset, wordAnalyzer.wordOffset));
+    public void start() {
+        try {
             wordAnalyzer.getsym();
-            if (wordAnalyzer.error != null) {
-                System.out.println(wordAnalyzer.error + " at " + wordAnalyzer.lineOffset + ":" + (wordAnalyzer.wordOffset - token.length() + 1) + " word: " + wordAnalyzer.token);
-                return;
+            while (wordAnalyzer.symbol != WordSymbol.EOF) {
+                buf.add(new NextWord(wordAnalyzer.token, wordAnalyzer.symbol, wordAnalyzer.lineOffset, wordAnalyzer.wordOffset));
+                wordAnalyzer.getsym();
             }
+        } catch (WordException e) {
+            System.out.println(e.getMessage() + " at " + wordAnalyzer.lineOffset + ":" + (wordAnalyzer.wordOffset - token.length() + 1) + " word: " + wordAnalyzer.token);
         }
         nextLevel();
-        program();
+        try {
+            program();
+        } catch (SyntaxException e) {
+            System.out.println(e.getMessage() + " at " + lineOffset + ":" + wordOffset + " word: " + token);
+        }
     }
 
     // 程序
-    private void program() {
+    private void program() throws SyntaxException {
+        while (!variableDeclaration()) {
+            break;
+        }
         read();
-        while (symbol == WordAnalyzer.Symbols.Const) {
+        if (wordSymbol == WordSymbol.EOF) {
+            if (findFunctionSymbol("main") == null) {
+                throw new SyntaxException(Errors.MissingMain);
+            }
+        }
+        /*while (wordSymbol == WordSymbol.Const) {
             unread();
             if (!constantDeclaration()) {
                 return;
@@ -91,7 +102,7 @@ public class SyntaxAnalyzer {
             read();
             read();
             read();
-            if (symbol == WordAnalyzer.Symbols.LeftBrace) {
+            if (wordSymbol == WordSymbol.LeftBrace) {
                 unread();
                 unread();
                 unread();
@@ -104,71 +115,62 @@ public class SyntaxAnalyzer {
         }
         while (functionDefinition()) {
             if (cursor == buf.size() - 1) {
-                if (SymbolTable.findFunctionSymbol("main", 1) == null) {
+                if (findFunctionSymbol("main", 1) == null) {
                     error = Errors.MissingMain;
                 }
                 return;
             }
-        }
+        }*/
     }
 
     // 常量说明部分
     private boolean constantDeclaration() {
         boolean exist = false;
-        SymbolTable.DataType dataType;
+        DataType dataType;
         String value;
         read();
-        if (symbol == WordAnalyzer.Symbols.Const) {
+        if (wordSymbol == WordSymbol.Const) {
             read();
         } else {
             unread();
             return true;
         }
-        if (symbol == WordAnalyzer.Symbols.Char || symbol == WordAnalyzer.Symbols.Int ||
-                symbol == WordAnalyzer.Symbols.Float || symbol == WordAnalyzer.Symbols.Double) {
+        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
             dataType = tokenToDataType(token);
         } else {
             error = Errors.ExpectType;
             return false;
         }
-        while (symbol == WordAnalyzer.Symbols.Identifier) {
+        while (wordSymbol == WordSymbol.Identifier) {
             exist = true;
-            if (SymbolTables.findVariableSymbol(token, level)) {
+            if (findVariableSymbol(token, level) != null) {
                 error = Errors.DuplicateSymbol;
                 return false;
             }
             String temp = token;
             read();
-            if (symbol != WordAnalyzer.Symbols.Assign) {
+            if (wordSymbol != WordSymbol.Assign) {
                 error = Errors.InvalidConstantDeclaration;
                 return false;
             }
             read();
             switch (dataType) {
                 case SignedChar:
-                case UnsignedChar:
                     value = String.valueOf(new BigInteger(token).byteValue());
                 case SignedInt:
-                case UnsignedInt:
                     value = String.valueOf(new BigInteger(token).intValue());
-                case SignedFloat:
-                case UnsignedFloat:
-                    value = String.valueOf(new BigInteger(token).floatValue());
-                case SignedDouble:
-                case UnsignedDouble:
-                    value = String.valueOf(new BigInteger(token).doubleValue());
                     break;
                 default:
                     throw new IllegalStateException("Unexpected value: " + dataType);
             }
-            if (!insertVariableSymbol(level, temp, SymbolTable.SymbolType.Variable, dataType, lineOffset, wordOffset, value)) {
+            if (!insertVariableSymbol(level, temp, SymbolType.Variable, dataType, lineOffset, wordOffset, value)) {
                 error = Errors.DuplicateSymbol;
                 return false;
             }
             read();
-            if (symbol == WordAnalyzer.Symbols.Semicolon) {
+            if (wordSymbol == WordSymbol.Semicolon) {
                 return true;
-            } else if (symbol == WordAnalyzer.Symbols.Comma) {
+            } else if (wordSymbol == WordSymbol.Comma) {
                 read();
             }
         }
@@ -182,10 +184,9 @@ public class SyntaxAnalyzer {
 
     // 变量说明部分
     private boolean variableDeclaration() {
-        SymbolTable.DataType dataType;
+        DataType dataType;
         read();
-        if (symbol == WordAnalyzer.Symbols.Char || symbol == WordAnalyzer.Symbols.Int ||
-                symbol == WordAnalyzer.Symbols.Float || symbol == WordAnalyzer.Symbols.Double) {
+        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
             dataType = tokenToDataType(token);
         } else {
             // 不是声明头部
@@ -193,58 +194,34 @@ public class SyntaxAnalyzer {
             return true;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.Main) {
+        if (wordSymbol == WordSymbol.Main) {
             unread();
             unread();
             return true;
         }
-        if (symbol != WordAnalyzer.Symbols.Identifier) {
+        if (wordSymbol != WordSymbol.Identifier) {
             error = Errors.ExpectIdentifier;
             return false;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.LeftBracket || symbol == WordAnalyzer.Symbols.Comma || symbol == WordAnalyzer.Symbols.Semicolon) {
+        if (wordSymbol == WordSymbol.Comma || wordSymbol == WordSymbol.Semicolon) {
             unread();
             String temp;
             int length;
-            while (symbol == WordAnalyzer.Symbols.Identifier) {
+            while (wordSymbol == WordSymbol.Identifier) {
                 temp = token;
                 read();
-                if (symbol == WordAnalyzer.Symbols.LeftBracket) {
-                    read();
-                    if (symbol != WordAnalyzer.Symbols.UnsignedInt) {
-                        error = Errors.ExpectInt32;
-                        return false;
-                    }
-                    try {
-                        length = Integer.parseInt(token);
-                    } catch (NumberFormatException e) {
-                        error = Errors.ExpectInt32;
-                        return false;
-                    }
-                    read();
-                    if (symbol != WordAnalyzer.Symbols.RightBracket) {
-                        error = Errors.ExpectCorrectSeparator;
-                        return false;
-                    }
-                    if (!insertArraySymbol(level, temp, SymbolTable.SymbolType.Variable, SymbolTable.DataType.Array,
-                            length, lineOffset, wordOffset)) {
-                        return false;
-                    }
-                } else {
-                    unread();
-                    if (!insertVariableSymbol(level, temp, SymbolTable.SymbolType.Variable, dataType, lineOffset, wordOffset)) {
-                        error = Errors.DuplicateSymbol;
-                        return false;
-                    }
+                if (!insertVariableSymbol(level, temp, SymbolType.Variable, dataType, lineOffset, wordOffset)) {
+                    error = Errors.DuplicateSymbol;
+                    return false;
                 }
                 read();
-                if (symbol == WordAnalyzer.Symbols.Semicolon) {
+                if (wordSymbol == WordSymbol.Semicolon) {
                     return true;
-                } else if (symbol == WordAnalyzer.Symbols.Assign) {
+                } else if (wordSymbol == WordSymbol.Assign) {
                     error = Errors.AssignWithDeclaration;
                     return false;
-                } else if (symbol != WordAnalyzer.Symbols.Comma) {
+                } else if (wordSymbol != WordSymbol.Comma) {
                     error = Errors.ExpectCorrectSeparator;
                     return false;
                 }
@@ -252,13 +229,13 @@ public class SyntaxAnalyzer {
             }
             error = Errors.ExpectIdentifier;
             return false;
-        } else if (symbol == WordAnalyzer.Symbols.LeftParenthesis) {
+        } else if (wordSymbol == WordSymbol.LeftParenthesis) {
             // 不是变量声明
             unread();
             unread();
             unread();
             return true;
-        } else if (symbol == WordAnalyzer.Symbols.Assign) {
+        } else if (wordSymbol == WordSymbol.Assign) {
             error = Errors.AssignWithDeclaration;
             return false;
         } else {
@@ -269,15 +246,15 @@ public class SyntaxAnalyzer {
 
     // 函数定义部分
     private boolean functionDefinition() {
-        SymbolTable.DataType dataType = null;
+        DataType dataType = null;
         String functionName;
         read();
-        if (symbol == WordAnalyzer.Symbols.Char || symbol == WordAnalyzer.Symbols.Int || symbol == WordAnalyzer.Symbols.Float ||
-                symbol == WordAnalyzer.Symbols.Double || symbol == WordAnalyzer.Symbols.Void) {
+        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int || wordSymbol == WordSymbol.Float ||
+                wordSymbol == WordSymbol.Double || wordSymbol == WordSymbol.Void) {
             dataType = tokenToDataType(token);
         }
         if (dataType == null) {
-            if (symbol == WordAnalyzer.Symbols.Identifier) {
+            if (wordSymbol == WordSymbol.Identifier) {
                 error = Errors.ExpectReturnType;
             } else {
                 error = Errors.InvalidSentenceSequence;
@@ -285,18 +262,18 @@ public class SyntaxAnalyzer {
             return false;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.Main) {
-            if (dataType != SymbolTable.DataType.SignedInt) {
+        if (wordSymbol == WordSymbol.Main) {
+            if (dataType != DataType.SignedInt) {
                 error = Errors.InvalidReturnType;
                 return false;
             }
 //            writeSymbols();
         }
-        if (symbol != WordAnalyzer.Symbols.Main && symbol != WordAnalyzer.Symbols.Identifier) {
+        if (wordSymbol != WordSymbol.Main && wordSymbol != WordSymbol.Identifier) {
             error = Errors.ExpectIdentifier;
             return false;
         }
-        if (!insertFunctionSymbol(token, SymbolTable.SymbolType.Function, dataType, lineOffset, wordOffset)) {
+        if (!insertFunctionSymbol(token, SymbolType.Function, dataType, lineOffset, wordOffset)) {
             error = Errors.DuplicateSymbol;
             return false;
         }
@@ -307,9 +284,9 @@ public class SyntaxAnalyzer {
             return false;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.LeftBrace) {
+        if (wordSymbol == WordSymbol.LeftBrace) {
             read();
-            while (symbol == WordAnalyzer.Symbols.Const) {
+            while (wordSymbol == WordSymbol.Const) {
                 unread();
                 if (!constantDeclaration()) {
                     return false;
@@ -319,8 +296,7 @@ public class SyntaxAnalyzer {
             unread();
             while (true) {
                 read();
-                if (symbol == WordAnalyzer.Symbols.Char || symbol == WordAnalyzer.Symbols.Int ||
-                        symbol == WordAnalyzer.Symbols.Float || symbol == WordAnalyzer.Symbols.Double) {
+                if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
                     unread();
                 } else {
                     break;
@@ -350,23 +326,22 @@ public class SyntaxAnalyzer {
     private boolean argument(String functionName) {
         DataType dataType;
         read();
-        if (symbol == WordAnalyzer.Symbols.LeftParenthesis) {
+        if (wordSymbol == WordSymbol.LeftParenthesis) {
             read();
-            if (symbol == WordAnalyzer.Symbols.RightParenthesis) {
+            if (wordSymbol == WordSymbol.RightParenthesis) {
                 return true;
             }
             unread();
             while (true) {
                 read();
-                if (symbol == WordAnalyzer.Symbols.Char || symbol == WordAnalyzer.Symbols.Int ||
-                        symbol == WordAnalyzer.Symbols.Float || symbol == WordAnalyzer.Symbols.Double) {
+                if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
                     dataType = tokenToDataType(token);
                 } else {
                     error = Errors.ExpectType;
                     return false;
                 }
                 read();
-                if (symbol != WordAnalyzer.Symbols.Identifier) {
+                if (wordSymbol != WordSymbol.Identifier) {
                     error = Errors.ExpectIdentifier;
                     return false;
                 }
@@ -375,9 +350,9 @@ public class SyntaxAnalyzer {
                     return false;
                 }
                 read();
-                if (symbol == WordAnalyzer.Symbols.RightParenthesis) {
+                if (wordSymbol == WordSymbol.RightParenthesis) {
                     return true;
-                } else if (symbol != WordAnalyzer.Symbols.Comma) {
+                } else if (wordSymbol != WordSymbol.Comma) {
                     error = Errors.ExpectCorrectSeparator;
                     return false;
                 }
@@ -391,7 +366,7 @@ public class SyntaxAnalyzer {
     // 语句序列
     private boolean statementSequence() {
         read();
-        if (symbol == WordAnalyzer.Symbols.RightBrace) {
+        if (wordSymbol == WordSymbol.RightBrace) {
             --level;
             prevLevel();
             return true;
@@ -402,7 +377,7 @@ public class SyntaxAnalyzer {
                 return false;
             }
             read();
-            if (symbol == WordAnalyzer.Symbols.RightBrace) {
+            if (wordSymbol == WordSymbol.RightBrace) {
                 --level;
                 prevLevel();
                 return true;
@@ -414,9 +389,9 @@ public class SyntaxAnalyzer {
 
     // 语句 在这里true表示已经成功处理，false表示没有语句或者遇到异常了
     private boolean statement() {
-        Symbols symbols;
+        Symbol symbol;
         read();
-        switch (symbol) {
+        switch (wordSymbol) {
             case If:
                 return ifStatement();
             case While:
@@ -428,17 +403,17 @@ public class SyntaxAnalyzer {
                 nextLevel();
                 return statementSequence();
             case Identifier:
-                if ((symbols = findVariableSymbol(token)) == null) {
+                if ((symbol = findVariableSymbol(token)) == null) {
                     error = Errors.SymbolNotFound;
                     return false;
                 }
-                if (symbols.symbolType == SymbolType.Function) {
+                if (symbol.symbolType == SymbolType.Function) {
                     unread();
                     if (!callFunction()) {
                         return false;
                     }
                     read();
-                    if (symbol != WordAnalyzer.Symbols.Semicolon) {
+                    if (wordSymbol != WordSymbol.Semicolon) {
                         error = Errors.ExpectCorrectSeparator;
                         return false;
                     }
@@ -449,28 +424,28 @@ public class SyntaxAnalyzer {
 //                        return false;
 //                    }
                     read();
-                    if (symbol != WordAnalyzer.Symbols.Semicolon) {
+                    if (wordSymbol != WordSymbol.Semicolon) {
                         error = Errors.ExpectCorrectSeparator;
                         return false;
                     }
                     return true;
                 }
-            case Scanf:
+            case Scan:
 //                if (!scanf()) {
 //                    return false;
 //                }
                 read();
-                if (symbol != WordAnalyzer.Symbols.Semicolon) {
+                if (wordSymbol != WordSymbol.Semicolon) {
                     error = Errors.ExpectCorrectSeparator;
                     return false;
                 }
                 return true;
-            case Printf:
+            case Print:
 //                if (!printf()) {
 //                    return false;
 //                }
                 read();
-                if (symbol != WordAnalyzer.Symbols.Semicolon) {
+                if (wordSymbol != WordSymbol.Semicolon) {
                     error = Errors.ExpectCorrectSeparator;
                     return false;
                 }
@@ -480,7 +455,7 @@ public class SyntaxAnalyzer {
 //                    return false;
 //                }
                 read();
-                if (symbol != WordAnalyzer.Symbols.Semicolon) {
+                if (wordSymbol != WordSymbol.Semicolon) {
                     error = Errors.ExpectCorrectSeparator;
                     return false;
                 }
@@ -497,7 +472,7 @@ public class SyntaxAnalyzer {
     // 条件语句
     private boolean ifStatement() {
         read();
-        if (symbol != WordAnalyzer.Symbols.LeftParenthesis) {
+        if (wordSymbol != WordSymbol.LeftParenthesis) {
             error = Errors.ExpectCorrectSeparator;
             return false;
         }
@@ -505,7 +480,7 @@ public class SyntaxAnalyzer {
 //            return false;
 //        }
         read();
-        if (symbol != WordAnalyzer.Symbols.RightParenthesis) {
+        if (wordSymbol != WordSymbol.RightParenthesis) {
             error = Errors.ExpectCorrectSeparator;
             return false;
         }
@@ -513,7 +488,7 @@ public class SyntaxAnalyzer {
             return false;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.Else) {
+        if (wordSymbol == WordSymbol.Else) {
             return statement();
         }
         unread();
@@ -523,7 +498,7 @@ public class SyntaxAnalyzer {
     // 循环语句
     private boolean whileStatement() {
         read();
-        if (symbol != WordAnalyzer.Symbols.LeftParenthesis) {
+        if (wordSymbol != WordSymbol.LeftParenthesis) {
             error = Errors.ExpectCorrectSeparator;
             return false;
         }
@@ -531,7 +506,7 @@ public class SyntaxAnalyzer {
 //            return false;
 //        }
         read();
-        if (symbol != WordAnalyzer.Symbols.RightParenthesis) {
+        if (wordSymbol != WordSymbol.RightParenthesis) {
             error = Errors.ExpectCorrectSeparator;
             return false;
         }
@@ -540,9 +515,9 @@ public class SyntaxAnalyzer {
 
     // 函数调用语句
     private boolean callFunction() {
-        FunctionSymbols functionSymbol;
+        FunctionSymbol functionSymbol;
         read();
-        if (symbol != WordAnalyzer.Symbols.Identifier) {
+        if (wordSymbol != WordSymbol.Identifier) {
             error = Errors.ExpectIdentifier;
             return false;
         }
@@ -551,20 +526,20 @@ public class SyntaxAnalyzer {
             return false;
         }
         read();
-        if (symbol != WordAnalyzer.Symbols.LeftParenthesis) {
+        if (wordSymbol != WordSymbol.LeftParenthesis) {
             error = Errors.ExpectCorrectSeparator;
             return false;
         }
         read();
-        if (symbol == WordAnalyzer.Symbols.RightParenthesis) {
+        if (wordSymbol == WordSymbol.RightParenthesis) {
             return true;
         } else {
             unread();
 //            while (expression()) {
 //                read();
-//                if (symbol == WordAnalyzer.Symbols.RightParenthesis) {
+//                if (symbol == WordSymbol.RightParenthesis) {
 //                    return true;
-//                } else if (symbol != WordAnalyzer.Symbols.Comma) {
+//                } else if (symbol != WordSymbol.Comma) {
 //                    error = Errors.ExpectCorrectSeparator;
 //                    return false;
 //                }
