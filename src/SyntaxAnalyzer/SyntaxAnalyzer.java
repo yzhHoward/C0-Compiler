@@ -2,13 +2,12 @@ package SyntaxAnalyzer;
 
 import SymbolTable.DataType;
 import SymbolTable.FunctionSymbol;
-import SymbolTable.Symbol;
 import SymbolTable.SymbolType;
+import SymbolTable.VariableSymbol;
 import WordAnalyzer.WordAnalyzer;
 import WordAnalyzer.WordException;
 import WordAnalyzer.WordSymbol;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 
 import static SymbolTable.SymbolTable.*;
@@ -18,7 +17,7 @@ public class SyntaxAnalyzer {
     public String token;
     public int lineOffset;
     public int wordOffset;
-    public Errors error;
+    public SyntaxError error;
     private WordAnalyzer wordAnalyzer;
     private PCodeWriter pCodeWriter;
     private WordSymbol wordSymbol;
@@ -54,7 +53,7 @@ public class SyntaxAnalyzer {
             lineOffset = 1;
             wordOffset = 0;
         } else {
-            error = Errors.UnreadError;
+            error = SyntaxError.UnreadError;
         }
     }
 
@@ -78,513 +77,519 @@ public class SyntaxAnalyzer {
 
     // 程序
     private void program() throws SyntaxException {
-        while (!variableDeclaration()) {
-            break;
+        int offset = 0;
+        while (variableDeclaration(offset)) {
+            ++offset;
+        }
+        offset = 0;
+        while (true) {
+            read();
+            if (wordSymbol == WordSymbol.EOF) {
+                unread();
+                break;
+            }
+            if (!functionDefinition(offset)) {
+                break;
+            }
+            ++offset;
         }
         read();
         if (wordSymbol == WordSymbol.EOF) {
             if (findFunctionSymbol("main") == null) {
-                throw new SyntaxException(Errors.MissingMain);
+                throw new SyntaxException(SyntaxError.MissingMain);
             }
         }
-        /*while (wordSymbol == WordSymbol.Const) {
-            unread();
-            if (!constantDeclaration()) {
-                return;
-            }
-            read();
-        }
-        unread();
-        while (true) {
-            if (!variableDeclaration()) {
-                return;
-            }
-            read();
-            read();
-            read();
-            if (wordSymbol == WordSymbol.LeftBrace) {
-                unread();
-                unread();
-                unread();
-                break;
-            } else {
-                unread();
-                unread();
-                unread();
-            }
-        }
-        while (functionDefinition()) {
-            if (cursor == buf.size() - 1) {
-                if (findFunctionSymbol("main", 1) == null) {
-                    error = Errors.MissingMain;
-                }
-                return;
-            }
-        }*/
-    }
-
-    // 常量说明部分
-    private boolean constantDeclaration() {
-        boolean exist = false;
-        DataType dataType;
-        String value;
-        read();
-        if (wordSymbol == WordSymbol.Const) {
-            read();
-        } else {
-            unread();
-            return true;
-        }
-        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
-            dataType = tokenToDataType(token);
-        } else {
-            error = Errors.ExpectType;
-            return false;
-        }
-        while (wordSymbol == WordSymbol.Identifier) {
-            exist = true;
-            if (findVariableSymbol(token, level) != null) {
-                error = Errors.DuplicateSymbol;
-                return false;
-            }
-            String temp = token;
-            read();
-            if (wordSymbol != WordSymbol.Assign) {
-                error = Errors.InvalidConstantDeclaration;
-                return false;
-            }
-            read();
-            switch (dataType) {
-                case SignedChar:
-                    value = String.valueOf(new BigInteger(token).byteValue());
-                case SignedInt:
-                    value = String.valueOf(new BigInteger(token).intValue());
-                    break;
-                default:
-                    throw new IllegalStateException("Unexpected value: " + dataType);
-            }
-            if (!insertVariableSymbol(level, temp, SymbolType.Variable, dataType, lineOffset, wordOffset, value)) {
-                error = Errors.DuplicateSymbol;
-                return false;
-            }
-            read();
-            if (wordSymbol == WordSymbol.Semicolon) {
-                return true;
-            } else if (wordSymbol == WordSymbol.Comma) {
-                read();
-            }
-        }
-        if (!exist) {
-            error = Errors.ExpectIdentifier;
-            return false;
-        }
-        error = Errors.ExpectCorrectSeparator;
-        return false;
     }
 
     // 变量说明部分
-    private boolean variableDeclaration() {
+    private boolean variableDeclaration(int offset) throws SyntaxException {
         DataType dataType;
+        SymbolType symbolType;
+        String identifier;
         read();
-        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
-            dataType = tokenToDataType(token);
+        if (wordSymbol == WordSymbol.Const) {
+            symbolType = SymbolType.Constant;
+            read();
         } else {
-            // 不是声明头部
-            unread();
-            return true;
+            symbolType = SymbolType.Variable;
         }
-        read();
-        if (wordSymbol == WordSymbol.Main) {
+        if (wordSymbol == WordSymbol.Char) {
+            dataType = DataType.Char;
+        } else if (wordSymbol == WordSymbol.Int) {
+            dataType = DataType.Int;
+        } else if (symbolType == SymbolType.Constant) {
+            throw new SyntaxException(SyntaxError.InvalidConstantDeclaration);
+        } else {
+            // 不是变量
             unread();
-            unread();
-            return true;
-        }
-        if (wordSymbol != WordSymbol.Identifier) {
-            error = Errors.ExpectIdentifier;
             return false;
         }
-        read();
-        if (wordSymbol == WordSymbol.Comma || wordSymbol == WordSymbol.Semicolon) {
-            unread();
-            String temp;
-            int length;
-            while (wordSymbol == WordSymbol.Identifier) {
-                temp = token;
-                read();
-                if (!insertVariableSymbol(level, temp, SymbolType.Variable, dataType, lineOffset, wordOffset)) {
-                    error = Errors.DuplicateSymbol;
-                    return false;
-                }
-                read();
-                if (wordSymbol == WordSymbol.Semicolon) {
-                    return true;
-                } else if (wordSymbol == WordSymbol.Assign) {
-                    error = Errors.AssignWithDeclaration;
-                    return false;
-                } else if (wordSymbol != WordSymbol.Comma) {
-                    error = Errors.ExpectCorrectSeparator;
-                    return false;
-                }
-                read();
+        while (true) {
+            boolean initialized = false;
+            read();
+            if (wordSymbol != WordSymbol.Identifier) {
+                throw new SyntaxException(SyntaxError.ExpectIdentifier);
             }
-            error = Errors.ExpectIdentifier;
-            return false;
-        } else if (wordSymbol == WordSymbol.LeftParenthesis) {
-            // 不是变量声明
-            unread();
-            unread();
-            unread();
-            return true;
-        } else if (wordSymbol == WordSymbol.Assign) {
-            error = Errors.AssignWithDeclaration;
-            return false;
-        } else {
-            error = Errors.InvalidVariableDeclaration; // UnknownError
-            return false;
+            identifier = token;
+            read();
+            if (wordSymbol == WordSymbol.Assign) {
+                initialized = true;
+                expression();
+            } else if (symbolType == SymbolType.Constant) {
+                throw new SyntaxException(SyntaxError.UninitializedConstant);
+            } else if (wordSymbol == WordSymbol.LeftParenthesis) {
+                unread();
+                unread();
+                unread();
+                return false;
+            } else {
+                unread();
+            }
+            read();
+            if (wordSymbol == WordSymbol.Semicolon) {
+                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset, lineOffset, wordOffset);
+                return true;
+            } else if (wordSymbol == WordSymbol.Comma) {
+                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset, lineOffset, wordOffset);
+            } else {
+                throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
+            }
         }
     }
 
     // 函数定义部分
-    private boolean functionDefinition() {
+    private boolean functionDefinition(int offset) throws SyntaxException {
         DataType dataType = null;
         String functionName;
         read();
-        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int || wordSymbol == WordSymbol.Float ||
-                wordSymbol == WordSymbol.Double || wordSymbol == WordSymbol.Void) {
+        if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int || wordSymbol == WordSymbol.Void) {
             dataType = tokenToDataType(token);
         }
         if (dataType == null) {
             if (wordSymbol == WordSymbol.Identifier) {
-                error = Errors.ExpectReturnType;
+                throw new SyntaxException(SyntaxError.ExpectReturnType);
             } else {
-                error = Errors.InvalidSentenceSequence;
+                throw new SyntaxException(SyntaxError.InvalidSentenceSequence);
             }
-            return false;
         }
         read();
-        if (wordSymbol == WordSymbol.Main) {
-            if (dataType != DataType.SignedInt) {
-                error = Errors.InvalidReturnType;
-                return false;
-            }
-//            writeSymbols();
+        if (wordSymbol != WordSymbol.Identifier) {
+            throw new SyntaxException(SyntaxError.ExpectIdentifier);
         }
-        if (wordSymbol != WordSymbol.Main && wordSymbol != WordSymbol.Identifier) {
-            error = Errors.ExpectIdentifier;
-            return false;
-        }
-        if (!insertFunctionSymbol(token, SymbolType.Function, dataType, lineOffset, wordOffset)) {
-            error = Errors.DuplicateSymbol;
-            return false;
-        }
+        insertFunctionSymbol(token, SymbolType.Function, dataType, offset, lineOffset, wordOffset);
         ++level;
         nextLevel();
         functionName = token;
-        if (!argument(functionName)) {
-            return false;
-        }
+        parameter(functionName);
         read();
         if (wordSymbol == WordSymbol.LeftBrace) {
-            read();
-            while (wordSymbol == WordSymbol.Const) {
-                unread();
-                if (!constantDeclaration()) {
-                    return false;
-                }
-                read();
+            int variableOffset = 0;
+            while (variableDeclaration(variableOffset)) {
+                ++variableOffset;
             }
-            unread();
-            while (true) {
-                read();
-                if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
-                    unread();
-                } else {
-                    break;
-                }
-                if (!variableDeclaration()) {
-                    return false;
-                }
-            }
-            if (!statementSequence()) {
-                return false;
-            }
-        } else {
-            error = Errors.MissingFunctionBody;
-            return false;
-        }
-        if (dataType == DataType.Void) {
-            pCodeWriter.write("RET", 0, 0);
-            return true;
-        }
-        pCodeWriter.write("LIT", 0, 0);
-        pCodeWriter.write("STO", 0, 0);
-        pCodeWriter.write("RET", 0, 0);
-        return true;
-    }
-
-    // 参数
-    private boolean argument(String functionName) {
-        DataType dataType;
-        read();
-        if (wordSymbol == WordSymbol.LeftParenthesis) {
-            read();
-            if (wordSymbol == WordSymbol.RightParenthesis) {
-                return true;
-            }
-            unread();
-            while (true) {
-                read();
-                if (wordSymbol == WordSymbol.Char || wordSymbol == WordSymbol.Int) {
-                    dataType = tokenToDataType(token);
-                } else {
-                    error = Errors.ExpectType;
-                    return false;
-                }
-                read();
-                if (wordSymbol != WordSymbol.Identifier) {
-                    error = Errors.ExpectIdentifier;
-                    return false;
-                }
-                if (!updateFunctionSymbol(functionName, token, dataType, lineOffset, wordOffset)) {
-                    error = Errors.DuplicateSymbol;
-                    return false;
-                }
-                read();
-                if (wordSymbol == WordSymbol.RightParenthesis) {
-                    return true;
-                } else if (wordSymbol != WordSymbol.Comma) {
-                    error = Errors.ExpectCorrectSeparator;
-                    return false;
-                }
-            }
-        } else {
-            error = Errors.InvalidArgumentDeclaration; // Unknown
-            return false;
-        }
-    }
-
-    // 语句序列
-    private boolean statementSequence() {
-        read();
-        if (wordSymbol == WordSymbol.RightBrace) {
-            --level;
-            prevLevel();
-            return true;
-        }
-        unread();
-        while (statement()) {
-            if (error != null) {
-                return false;
-            }
+            statementSequence();
             read();
             if (wordSymbol == WordSymbol.RightBrace) {
                 --level;
                 prevLevel();
-                return true;
+            } else {
+                throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
             }
-            unread();
+        } else {
+            throw new SyntaxException(SyntaxError.MissingFunctionBody);
         }
-        return false;
+        read();
+        if (wordSymbol == WordSymbol.EOF) {
+            unread();
+            return false;
+        } else {
+            unread();
+            return true;
+        }
     }
 
-    // 语句 在这里true表示已经成功处理，false表示没有语句或者遇到异常了
-    private boolean statement() {
-        Symbol symbol;
+    // 参数
+    private void parameter(String functionName) throws SyntaxException {
+        DataType dataType;
+        SymbolType symbolType;
+        int offset = 0;
         read();
-        switch (wordSymbol) {
-            case If:
-                return ifStatement();
-            case While:
-                return whileStatement();
-            case For:
-//                return forStatement();
-            case LeftBrace:
-                ++level;
-                nextLevel();
-                return statementSequence();
-            case Identifier:
-                if ((symbol = findVariableSymbol(token)) == null) {
-                    error = Errors.SymbolNotFound;
-                    return false;
-                }
-                if (symbol.symbolType == SymbolType.Function) {
-                    unread();
-                    if (!callFunction()) {
-                        return false;
-                    }
+        if (wordSymbol == WordSymbol.LeftParenthesis) {
+            read();
+            if (wordSymbol == WordSymbol.RightParenthesis) {
+                return;
+            }
+            unread();
+            while (true) {
+                read();
+                if (wordSymbol == WordSymbol.Const) {
+                    symbolType = SymbolType.Constant;
                     read();
-                    if (wordSymbol != WordSymbol.Semicolon) {
-                        error = Errors.ExpectCorrectSeparator;
-                        return false;
-                    }
-                    return true;
                 } else {
+                    symbolType = SymbolType.Variable;
+                }
+                if (wordSymbol == WordSymbol.Char) {
+                    dataType = DataType.Char;
+                } else if (wordSymbol == WordSymbol.Int) {
+                    dataType = DataType.Int;
+                } else {
+                    throw new SyntaxException(SyntaxError.ExpectType);
+                }
+                read();
+                if (wordSymbol != WordSymbol.Identifier) {
+                    throw new SyntaxException(SyntaxError.ExpectIdentifier);
+                }
+                updateFunctionSymbol(functionName, token, symbolType, dataType, offset, lineOffset, wordOffset);
+                read();
+                if (wordSymbol == WordSymbol.RightParenthesis) {
+                    return;
+                } else if (wordSymbol != WordSymbol.Comma) {
+                    throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
+                }
+                ++offset;
+            }
+        } else {
+            throw new SyntaxException(SyntaxError.MissingParameter);
+        }
+    }
+
+    // 语句序列
+    private void statementSequence() throws SyntaxException {
+        while (true) {
+            if (!statement()) {
+                break;
+            }
+        }
+    }
+
+    // 语句
+    private boolean statement() throws SyntaxException {
+        read();
+        if (wordSymbol == WordSymbol.RightBrace) {
+            unread();
+            return false;
+        } else if (wordSymbol == WordSymbol.LeftBrace) {
+            ++level;
+            nextLevel();
+            statementSequence();
+            read();
+            if (wordSymbol == WordSymbol.RightBrace) {
+                --level;
+                prevLevel();
+            }
+            return true;
+        } else if (wordSymbol == WordSymbol.Identifier) {
+            read();
+            if (wordSymbol == WordSymbol.LeftParenthesis) {
+                unread();
+                unread();
+                callFunction();
+            } else {
+                unread();
+                unread();
+                assignment();
+            }
+            read();
+            if (wordSymbol != WordSymbol.Semicolon) {
+                throw new SyntaxException(SyntaxError.MissingSemicolon);
+            }
+            return true;
+        } else {
+            switch (wordSymbol) {
+                case If:
                     unread();
-//                    if (!assignStatement()) {
-//                        return false;
-//                    }
-                    read();
-                    if (wordSymbol != WordSymbol.Semicolon) {
-                        error = Errors.ExpectCorrectSeparator;
-                        return false;
-                    }
+                    ifStatement();
                     return true;
-                }
-            case Scan:
-//                if (!scanf()) {
-//                    return false;
-//                }
-                read();
-                if (wordSymbol != WordSymbol.Semicolon) {
-                    error = Errors.ExpectCorrectSeparator;
-                    return false;
-                }
-                return true;
-            case Print:
-//                if (!printf()) {
-//                    return false;
-//                }
-                read();
-                if (wordSymbol != WordSymbol.Semicolon) {
-                    error = Errors.ExpectCorrectSeparator;
-                    return false;
-                }
-                return true;
-            case Return:
-//                if (!returnAnalyse()) {
-//                    return false;
-//                }
-                read();
-                if (wordSymbol != WordSymbol.Semicolon) {
-                    error = Errors.ExpectCorrectSeparator;
-                    return false;
-                }
-            case Semicolon:
-                return true;
-            default:
-                error = Errors.InvalidArgumentDeclaration;
-                return false;
-                /*System.out.println("这句话不应该出现的");
-                return false;*/
+                case While:
+                    unread();
+                    whileStatement();
+                    return true;
+                case Scan:
+                    unread();
+                    scanStatement();
+                    return true;
+                case Print:
+                    unread();
+                    printStatement();
+                    return true;
+                case Return:
+                    unread();
+                    returnStatement();
+                    return true;
+                case Semicolon:
+                    return true;
+                default:
+                    throw new SyntaxException(SyntaxError.InvalidSentenceSequence);
+            }
+        }
+    }
+
+    // 条件
+    private void condition() throws SyntaxException {
+        expression();
+        read();
+        if (wordSymbol == WordSymbol.RightParenthesis) {
+
+        } else {
+            switch (wordSymbol) {
+                case Less:
+                    break;
+                case LessOrEqual:
+                    break;
+                case Greater:
+                    break;
+                case GreaterOrEqual:
+                    break;
+                case NotEqual:
+                    break;
+                case Equal:
+                    break;
+                default:
+                    throw new SyntaxException(SyntaxError.InvalidCondition);
+            }
+            expression();
         }
     }
 
     // 条件语句
-    private boolean ifStatement() {
+    private void ifStatement() throws SyntaxException {
+        read();
+        if (wordSymbol != WordSymbol.If) {
+            throw new SyntaxException(SyntaxError.InvalidIfStatement);
+        }
         read();
         if (wordSymbol != WordSymbol.LeftParenthesis) {
-            error = Errors.ExpectCorrectSeparator;
-            return false;
+            throw new SyntaxException(SyntaxError.MissingCondition);
         }
-//        if (!condition()) {
-//            return false;
-//        }
+        condition();
         read();
         if (wordSymbol != WordSymbol.RightParenthesis) {
-            error = Errors.ExpectCorrectSeparator;
-            return false;
+            throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
         }
-        if (!statement()) {
-            return false;
-        }
+        statement();
         read();
         if (wordSymbol == WordSymbol.Else) {
-            return statement();
+            statement();
+        } else {
+            unread();
         }
-        unread();
-        return true;
     }
 
     // 循环语句
-    private boolean whileStatement() {
+    private void whileStatement() throws SyntaxException {
+        read();
+        if (wordSymbol != WordSymbol.While) {
+            throw new SyntaxException(SyntaxError.InvalidWhileStatement);
+        }
         read();
         if (wordSymbol != WordSymbol.LeftParenthesis) {
-            error = Errors.ExpectCorrectSeparator;
-            return false;
+            throw new SyntaxException(SyntaxError.MissingCondition);
         }
-//        if (!condition()) {
-//            return false;
-//        }
+        condition();
         read();
         if (wordSymbol != WordSymbol.RightParenthesis) {
-            error = Errors.ExpectCorrectSeparator;
-            return false;
+            throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
         }
-        return statement();
+        statement();
+    }
+
+    // 返回语句
+    private void returnStatement() throws SyntaxException {
+        read();
+        if (wordSymbol != WordSymbol.Return) {
+            throw new SyntaxException(SyntaxError.InvalidReturn);
+        }
+        read();
+        if (wordSymbol != WordSymbol.Semicolon) {
+            expression();
+            read();
+            if (wordSymbol != WordSymbol.Semicolon) {
+                throw new SyntaxException(SyntaxError.MissingSemicolon);
+            }
+        }
+    }
+
+    // 读语句
+    private void scanStatement() throws SyntaxException {
+        VariableSymbol variableSymbol;
+        read();
+        if (wordSymbol != WordSymbol.Scan) {
+            throw new SyntaxException(SyntaxError.InvalidScan);
+        }
+        read();
+        if (wordSymbol != WordSymbol.LeftParenthesis) {
+            throw new SyntaxException(SyntaxError.ExpectLeftParenthesis);
+        }
+        read();
+        if (wordSymbol != WordSymbol.Identifier) {
+            throw new SyntaxException(SyntaxError.ExpectIdentifier);
+        }
+        variableSymbol = findVariableSymbol(token);
+        if (variableSymbol == null) {
+            throw new SyntaxException(SyntaxError.SymbolNotFound);
+        }
+        read();
+        if (wordSymbol != WordSymbol.RightParenthesis) {
+            throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
+        }
+    }
+
+    // 写语句
+    private void printStatement() throws SyntaxException {
+        read();
+        if (wordSymbol != WordSymbol.Scan) {
+            throw new SyntaxException(SyntaxError.InvalidScan);
+        }
+        read();
+        if (wordSymbol != WordSymbol.LeftParenthesis) {
+            throw new SyntaxException(SyntaxError.ExpectLeftParenthesis);
+        }
+        read();
+        if (wordSymbol == WordSymbol.StringLiteral) {
+
+        } else {
+            expression();
+        }
+        read();
+        if (wordSymbol != WordSymbol.RightParenthesis) {
+            throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
+        }
+    }
+
+    // 赋值语句
+    private void assignment() throws SyntaxException {
+        VariableSymbol variableSymbol;
+        read();
+        if (wordSymbol != WordSymbol.Identifier) {
+            throw new SyntaxException(SyntaxError.ExpectIdentifier);
+        }
+        variableSymbol = findVariableSymbol(token);
+        if (variableSymbol == null) {
+            throw new SyntaxException(SyntaxError.SymbolNotFound);
+        } else if (!variableSymbol.isInitialized()) {
+            throw new SyntaxException(SyntaxError.UninitializedVariable);
+        }
+        read();
+        if (wordSymbol != WordSymbol.Assign) {
+            throw new SyntaxException(SyntaxError.InvalidAssignment);
+        }
+        expression();
+    }
+
+    // 表达式
+    private void expression() throws SyntaxException {
+        multiplicativeExpression();
+        while (true) {
+            read();
+            if (wordSymbol == WordSymbol.Plus || wordSymbol == WordSymbol.Minus) {
+                multiplicativeExpression();
+            } else {
+                unread();
+                break;
+            }
+        }
+    }
+
+    private void multiplicativeExpression() throws SyntaxException {
+        castExpression();
+        while (true) {
+            read();
+            if (wordSymbol == WordSymbol.Multi || wordSymbol == WordSymbol.Div) {
+                castExpression();
+            } else {
+                unread();
+                break;
+            }
+        }
+    }
+
+    private void castExpression() throws SyntaxException {
+        while (true) {
+            read();
+            if (wordSymbol == WordSymbol.LeftParenthesis) {
+                read();
+                if (wordSymbol == WordSymbol.Int) {
+
+                } else if (wordSymbol == WordSymbol.Char) {
+
+                } else {
+                    throw new SyntaxException(SyntaxError.ExpectTypeSpecifier);
+                }
+                read();
+                if (wordSymbol != WordSymbol.RightParenthesis) {
+                    throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
+                }
+            } else {
+                unread();
+                break;
+            }
+        }
+        read();
+        if (wordSymbol == WordSymbol.Plus || wordSymbol == WordSymbol.Minus) {
+            primaryExpression();
+        } else {
+            unread();
+            primaryExpression();
+        }
+    }
+
+    private void primaryExpression() throws SyntaxException {
+        VariableSymbol variableSymbol;
+        FunctionSymbol functionSymbol;
+        read();
+        if (wordSymbol == WordSymbol.LeftParenthesis) {
+            expression();
+            read();
+            if (wordSymbol != WordSymbol.RightParenthesis) {
+                throw new SyntaxException(SyntaxError.ExpectRightParenthesis);
+            }
+        } else if (wordSymbol == WordSymbol.UnsignedInt) {
+
+        } else if (wordSymbol == WordSymbol.CharLiteral) {
+
+        } else if (wordSymbol == WordSymbol.Identifier) {
+            variableSymbol = findVariableSymbol(token);
+            functionSymbol = findFunctionSymbol(token);
+            if (variableSymbol != null) {
+                if (!variableSymbol.isInitialized()) {
+                    throw new SyntaxException(SyntaxError.UninitializedVariable);
+                }
+            } else if (functionSymbol != null) {
+                unread();
+                callFunction();
+            } else {
+                throw new SyntaxException(SyntaxError.SymbolNotFound);
+            }
+        }
     }
 
     // 函数调用语句
-    private boolean callFunction() {
+    private void callFunction() throws SyntaxException {
         FunctionSymbol functionSymbol;
         read();
         if (wordSymbol != WordSymbol.Identifier) {
-            error = Errors.ExpectIdentifier;
-            return false;
+            throw new SyntaxException(SyntaxError.ExpectIdentifier);
         }
-        if ((functionSymbol = findFunctionSymbol(token)) == null) {
-            error = Errors.SymbolNotFound;
-            return false;
+        functionSymbol = findFunctionSymbol(token);
+        if (functionSymbol == null) {
+            throw new SyntaxException(SyntaxError.SymbolNotFound);
         }
         read();
         if (wordSymbol != WordSymbol.LeftParenthesis) {
-            error = Errors.ExpectCorrectSeparator;
-            return false;
+            throw new SyntaxException(SyntaxError.ExpectLeftParenthesis);
         }
         read();
-        if (wordSymbol == WordSymbol.RightParenthesis) {
-            return true;
-        } else {
+        if (wordSymbol != WordSymbol.RightParenthesis) {
             unread();
-//            while (expression()) {
-//                read();
-//                if (symbol == WordSymbol.RightParenthesis) {
-//                    return true;
-//                } else if (symbol != WordSymbol.Comma) {
-//                    error = Errors.ExpectCorrectSeparator;
-//                    return false;
-//                }
-//            }
-            return false;
+            while (true) {
+                expression();
+                read();
+                if (wordSymbol == WordSymbol.RightParenthesis) {
+                    break;
+                } else if (wordSymbol != WordSymbol.Comma) {
+                    throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
+                }
+            }
         }
-    }
-
-    public enum Errors {
-        InvalidConstantDeclaration,
-        InvalidVariableDeclaration,
-        DuplicateSymbol,
-        SymbolNotFound,
-        ExpectIdentifier,
-        ExpectInt32,
-        ExpectCorrectSeparator,
-        ExpectType,
-        ExpectReturnType,
-        InvalidFunctionDeclaration,
-        InvalidArgumentDeclaration,
-        MissingFunctionBody,
-        InvalidSentenceSequence,
-        InvalidExpression,
-        InvalidFactor,
-        InvalidIfStatement,
-        InvalidWhileStatement,
-        InvalidAssignment,
-        InvalidReturn,
-        InvalidReturnType,
-        InvalidScanf,
-        InvalidPrintf,
-        InvalidCall,
-        InvalidCondition,
-        LessArguments,
-        MoreArguments,
-        AssignToConstant,
-        AssignToFunction,
-        AssignWithDeclaration,
-        MissingMain,
-        MissingSemicolon,
-        MissingSentence,
-        ReturnValueForVoidFunction,
-        NoReturnValueForIntFunction,
-        NotCallingFunction,
-        UnsupportedFeature,
-        UnreadError
     }
 }

@@ -1,5 +1,8 @@
 package SymbolTable;
 
+import SyntaxAnalyzer.SyntaxError;
+import SyntaxAnalyzer.SyntaxException;
+
 import java.util.HashMap;
 import java.util.LinkedList;
 
@@ -14,98 +17,44 @@ public class SymbolTable {
         tables.removeLast();
     }
 
-    public static boolean insertVariableSymbol(int level, String token, SymbolType symbolType, DataType dataType,
-                                               int lineOffset, int wordOffset) {
+    public static void insertVariableSymbol(int level, String token, boolean initialized, SymbolType symbolType, DataType dataType,
+                                            int offset, int lineOffset, int wordOffset) throws SyntaxException {
         HashMap<String, Symbol> symbolTable;
         symbolTable = tables.get(level);
         if (symbolTable.containsKey(token)) {
-            return false;
+            throw new SyntaxException(SyntaxError.DuplicateSymbol);
         } else {
-            symbolTable.put(token, new VariableSymbol(token, symbolType, dataType, lineOffset, wordOffset));
-            return true;
+            symbolTable.put(token, new VariableSymbol(token, initialized, symbolType, dataType, offset, lineOffset, wordOffset));
         }
     }
 
-    public static boolean insertVariableSymbol(int level, String token, SymbolType symbolType, DataType dataType,
-                                               int lineOffset, int wordOffset, String value) {
-        HashMap<String, Symbol> symbolTable;
-        symbolTable = tables.get(level);
-        if (symbolTable.containsKey(token)) {
-            return false;
-        } else {
-            symbolTable.put(token, new VariableSymbol(token, symbolType, dataType, lineOffset, wordOffset, value));
-            return true;
-        }
-    }
-
-    public static boolean insertVariableSymbol(int level, String token, SymbolType symbolType, DataType dataType,
-                                               int lineOffset, int wordOffset, boolean isConst, String value) {
-        HashMap<String, Symbol> symbolTable;
-        symbolTable = tables.get(level);
-        if (symbolTable.containsKey(token)) {
-            return false;
-        } else {
-            symbolTable.put(token, new VariableSymbol(token, symbolType, dataType, lineOffset, wordOffset, isConst, value));
-            return true;
-        }
-    }
-
-    public static boolean insertFunctionSymbol(String token, SymbolType symbolType, DataType dataType,
-                                               int lineOffset, int wordOffset) {
+    public static void insertFunctionSymbol(String token, SymbolType symbolType, DataType dataType,
+                                            int offset, int lineOffset, int wordOffset) throws SyntaxException {
         int level = 1;
         HashMap<String, Symbol> symbolTable;
         symbolTable = tables.get(level);
         if (symbolTable.containsKey(token)) {
-            return false;
+            throw new SyntaxException(SyntaxError.DuplicateSymbol);
         } else {
-            symbolTable.put(token, new FunctionSymbol(token, symbolType, dataType, lineOffset, wordOffset));
-            return true;
+            symbolTable.put(token, new FunctionSymbol(token, symbolType, dataType, offset, lineOffset, wordOffset));
         }
     }
 
-    public static boolean updateVariableSymbol(String symbolName, String value) {
-        HashMap<String, Symbol> symbolTable;
-        for (int i = tables.size() - 1; i >= 0; --i) {
-            symbolTable = tables.get(i);
-            if (symbolTable.containsKey(symbolName)) {
-                Symbol symbol = symbolTable.get(symbolName);
-                if (symbol instanceof VariableSymbol) {
-                    VariableSymbol variableSymbol = (VariableSymbol) symbol;
-                    if ((variableSymbol.symbolType == SymbolType.Variable || variableSymbol.symbolType == SymbolType.Param) &&
-                            !variableSymbol.isConst) {
-                        switch (variableSymbol.dataType) {
-                            case SignedChar:
-                                if (value.length() == 1) {
-                                    variableSymbol.value = value;
-                                    return true;
-                                }
-                            case SignedInt:
-                                variableSymbol.value = String.valueOf(Integer.parseInt(value));
-                        }
-                        variableSymbol.value = value;
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    public static boolean updateFunctionSymbol(String functionName, String token, DataType dataType,
-                                               int lineOffset, int wordOffset) {
+    public static void updateFunctionSymbol(String functionName, String token, SymbolType symbolType, DataType dataType,
+                                            int offset, int lineOffset, int wordOffset) throws SyntaxException {
         HashMap<String, Symbol> symbolTable;
         FunctionSymbol functionSymbol;
         symbolTable = tables.get(1);
         if (!symbolTable.containsKey(functionName)) {
-            return false;
+            throw new SyntaxException(SyntaxError.SymbolNotFound);
         }
         Symbol symbol = symbolTable.get(functionName);
         if (symbol instanceof FunctionSymbol) {
             functionSymbol = (FunctionSymbol) symbol;
         } else {
-            return false;
+            throw new SyntaxException(SyntaxError.UnknownError);
         }
-        return functionSymbol.addArgs(token, new VariableSymbol(token, SymbolType.Param, dataType, lineOffset, wordOffset));
+        functionSymbol.addArgs(token, new VariableSymbol(token, true, symbolType, dataType, offset, lineOffset, wordOffset));
     }
 
     public static VariableSymbol findVariableSymbol(String symbolName) {
@@ -122,18 +71,6 @@ public class SymbolTable {
         return null;
     }
 
-    public static VariableSymbol findVariableSymbol(String symbolName, int level) {
-        HashMap<String, Symbol> symbolTable;
-        symbolTable = tables.get(level);
-        if (symbolTable.containsKey(symbolName)) {
-            Symbol symbol = symbolTable.get(symbolName);
-            if (symbol instanceof VariableSymbol) {
-                return (VariableSymbol) symbol;
-            }
-        }
-        return null;
-    }
-
     public static FunctionSymbol findFunctionSymbol(String symbolName) {
         HashMap<String, Symbol> symbolTable;
         for (int i = tables.size() - 1; i >= 0; --i) {
@@ -143,6 +80,18 @@ public class SymbolTable {
                 if (symbol instanceof FunctionSymbol) {
                     return (FunctionSymbol) symbol;
                 }
+            }
+        }
+        return null;
+    }
+
+    public static VariableSymbol findVariableSymbol(String symbolName, int level) {
+        HashMap<String, Symbol> symbolTable;
+        symbolTable = tables.get(level);
+        if (symbolTable.containsKey(symbolName)) {
+            Symbol symbol = symbolTable.get(symbolName);
+            if (symbol instanceof VariableSymbol) {
+                return (VariableSymbol) symbol;
             }
         }
         return null;

@@ -9,8 +9,8 @@ public class Utils {
     private static Map<String, DataType> tokenDataTypeMap =
             new HashMap<String, DataType>() {
                 {
-                    put("char", DataType.SignedChar);
-                    put("int", DataType.SignedInt);
+                    put("char", DataType.Char);
+                    put("int", DataType.Int);
                     put("void", DataType.Void);
                 }
             };

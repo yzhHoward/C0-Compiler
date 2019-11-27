@@ -1,9 +1,9 @@
 package SyntaxAnalyzer;
 
 public class SyntaxException extends Exception {
-    private SyntaxAnalyzer.Errors error;
+    private SyntaxError error;
 
-    public SyntaxException(SyntaxAnalyzer.Errors error) {
+    public SyntaxException(SyntaxError error) {
         this.error = error;
     }
 

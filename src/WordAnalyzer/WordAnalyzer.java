@@ -140,7 +140,7 @@ public class WordAnalyzer {
                 read();
                 if (isDigit()) {
                     symbol = WordSymbol.Unknown;
-                    throw new WordException(Errors.NumberStartFromZero);
+                    throw new WordException(WordError.NumberStartFromZero);
                 } else if (ch == 'x' || ch == 'X') {
                     catToken();
                     read();
@@ -149,14 +149,14 @@ public class WordAnalyzer {
                         read();
                     }
                     if (isLetter()) {
-                        throw new WordException(Errors.InvalidHexNumber);
+                        throw new WordException(WordError.InvalidHexNumber);
                     }
                     unread();
                     if (checkHexOverFlow()) {
-                        throw new WordException(Errors.NumberOutOfRange);
+                        throw new WordException(WordError.NumberOutOfRange);
                     }
                 } else if (isLetter()) {
-                    throw new WordException(Errors.InvalidIdentifier);
+                    throw new WordException(WordError.InvalidIdentifier);
                 }
                 symbol = WordSymbol.UnsignedInt;
             } else {
@@ -165,11 +165,11 @@ public class WordAnalyzer {
                     read();
                 }
                 if (isLetter()) {
-                    throw new WordException(Errors.InvalidIdentifier);
+                    throw new WordException(WordError.InvalidIdentifier);
                 }
                 unread();
                 if (checkIntOverFlow()) {
-                    throw new WordException(Errors.NumberOutOfRange);
+                    throw new WordException(WordError.NumberOutOfRange);
                 }
                 symbol = WordSymbol.UnsignedInt;
             }
@@ -198,12 +198,12 @@ public class WordAnalyzer {
                                 break;
                         }
                     } else {
-                        throw new WordException(Errors.InvalidEscape);
+                        throw new WordException(WordError.InvalidEscape);
                     }
                 } else if (ch == 65535) {
-                    throw new WordException(Errors.InvalidStringLiteral);
+                    throw new WordException(WordError.InvalidStringLiteral);
                 } else if (ch != '\t' && (ch <= 31 || ch >= 127)) {
-                    throw new WordException(Errors.InvalidStringLiteral);
+                    throw new WordException(WordError.InvalidStringLiteral);
                 }
                 catToken();
                 read();
@@ -233,7 +233,7 @@ public class WordAnalyzer {
                             break;
                     }
                 } else {
-                    throw new WordException(Errors.InvalidEscape);
+                    throw new WordException(WordError.InvalidEscape);
                 }
                 catToken();
                 read();
@@ -264,7 +264,7 @@ public class WordAnalyzer {
             } else {
                 unread();
                 symbol = WordSymbol.Unknown;
-                throw new WordException(Errors.UnknownSeparator);
+                throw new WordException(WordError.UnknownSeparator);
             }
         } else if (ch == '<') {
             catToken();
@@ -327,7 +327,7 @@ public class WordAnalyzer {
                     read();
                     while (ch != '*') {
                         if (ch == 65535) {
-                            throw new WordException(Errors.UnfinishedComment);
+                            throw new WordException(WordError.UnfinishedComment);
                         }
                         read();
                     }
@@ -336,7 +336,7 @@ public class WordAnalyzer {
                         if (ch == '/') {
                             break label1;
                         } else if (ch == 65535) {
-                            throw new WordException(Errors.UnfinishedComment);
+                            throw new WordException(WordError.UnfinishedComment);
                         }
                     }
                 }
@@ -395,12 +395,6 @@ public class WordAnalyzer {
 
     private boolean isDigit() {
         return ch >= '0' && ch <= '9';
-    }
-
-    public enum Errors {
-        InvalidIdentifier, UnknownSeparator, NumberStartFromZero, NumberOutOfRange,
-        InvalidHexNumber, InvalidStringLiteral, InvalidEscape, Internal, ExclamationError,
-        UnfinishedComment
     }
 
     private boolean isZero() {

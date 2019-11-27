@@ -1,9 +1,9 @@
 package WordAnalyzer;
 
 public class WordException extends Exception {
-    private WordAnalyzer.Errors error;
+    private WordError error;
 
-    public WordException(WordAnalyzer.WordAnalyzer.Errors error) {
+    public WordException(WordError error) {
         this.error = error;
     }
 

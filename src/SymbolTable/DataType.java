@@ -1,7 +1,7 @@
 package SymbolTable;
 
 public enum DataType {
-    SignedChar,
-    SignedInt,
+    Char,
+    Int,
     Void
 }
