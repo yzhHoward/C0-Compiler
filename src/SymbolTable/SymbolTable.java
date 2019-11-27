@@ -24,19 +24,22 @@ public class SymbolTable {
         if (symbolTable.containsKey(token)) {
             throw new SyntaxException(SyntaxError.DuplicateSymbol);
         } else {
-            symbolTable.put(token, new VariableSymbol(token, initialized, symbolType, dataType, offset, lineOffset, wordOffset));
+            symbolTable.put(token, new VariableSymbol(token, initialized, symbolType, dataType, level, offset, lineOffset, wordOffset));
         }
     }
 
-    public static void insertFunctionSymbol(String token, SymbolType symbolType, DataType dataType,
-                                            int offset, int lineOffset, int wordOffset) throws SyntaxException {
-        int level = 1;
+    public static FunctionSymbol insertFunctionSymbol(String token, SymbolType symbolType, DataType dataType,
+                                                      int offset, int lineOffset, int wordOffset) throws SyntaxException {
+        int level = 0;
         HashMap<String, Symbol> symbolTable;
+        FunctionSymbol functionSymbol;
         symbolTable = tables.get(level);
         if (symbolTable.containsKey(token)) {
             throw new SyntaxException(SyntaxError.DuplicateSymbol);
         } else {
-            symbolTable.put(token, new FunctionSymbol(token, symbolType, dataType, offset, lineOffset, wordOffset));
+            functionSymbol = new FunctionSymbol(token, symbolType, dataType, level, offset, lineOffset, wordOffset);
+            symbolTable.put(token, functionSymbol);
+            return functionSymbol;
         }
     }
 
@@ -54,7 +57,7 @@ public class SymbolTable {
         } else {
             throw new SyntaxException(SyntaxError.UnknownError);
         }
-        functionSymbol.addArgs(token, new VariableSymbol(token, true, symbolType, dataType, offset, lineOffset, wordOffset));
+        functionSymbol.addArgs(token, new VariableSymbol(token, true, symbolType, dataType, 1, offset, lineOffset, wordOffset));
     }
 
     public static VariableSymbol findVariableSymbol(String symbolName) {

@@ -354,7 +354,10 @@ public class WordAnalyzer {
     }
 
     private boolean checkIntOverFlow() {
-        return new BigInteger(token, 10).bitLength() >= 32;
+        BigInteger bigInteger = new BigInteger(token, 10);
+        String str = bigInteger.toString(16);
+        token = "0x" + str;
+        return bigInteger.bitLength() >= 32;
     }
 
     private boolean checkHexOverFlow() {

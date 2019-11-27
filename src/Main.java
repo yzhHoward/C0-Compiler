@@ -13,18 +13,24 @@ public class Main {
                 System.out.println(String.format("%-16d%-16s%-16s%-16s", wordAnalyzer.count, wordAnalyzer.getType(), wordAnalyzer.symbol, wordAnalyzer.token));
             } catch (WordException e) {
                 System.out.println(e.getMessage() + " at " + wordAnalyzer.lineOffset + ":" + (wordAnalyzer.wordOffset - wordAnalyzer.token.length() + 1) + " word: " + wordAnalyzer.token);
+                break;
             }
         }
     }
 
-    private static void syntaxAnalyze(String source, String outputPath) {
+    private static void syntaxAnalyze(String source) {
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer(new WordAnalyzer(source));
         syntaxAnalyzer.start();
     }
 
+    private static void syntaxAnalyze(String source, String outputPath) {
+        SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer(new WordAnalyzer(source), outputPath);
+        syntaxAnalyzer.start();
+    }
+
     public static void main(String[] args) {
-        String source = "./test_tokenizer/invalid/toooooo_big_integers.txt";
+        String source = "./1.c";
         String outputPath = "./1.txt";
-        wordAnalyze(source);
+        syntaxAnalyze(source);
     }
 }

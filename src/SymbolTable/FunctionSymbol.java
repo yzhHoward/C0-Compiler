@@ -3,22 +3,29 @@ package SymbolTable;
 import SyntaxAnalyzer.SyntaxError;
 import SyntaxAnalyzer.SyntaxException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class FunctionSymbol extends Symbol {
-    HashMap<String, VariableSymbol> argsMap;
+    private HashMap<String, VariableSymbol> argsMap;
+    private ArrayList<VariableSymbol> args;
 
     public FunctionSymbol(String name, SymbolType symbolType, DataType dataType,
-                          int offset, int lineOffset, int wordOffset) {
-        super(name, symbolType, dataType, offset, lineOffset, wordOffset);
+                          int level, int offset, int lineOffset, int wordOffset) {
+        super(name, symbolType, dataType, level, offset, lineOffset, wordOffset);
         this.argsMap = new HashMap<>();
+        this.args = new ArrayList<>();
     }
 
-    public boolean addArgs(String token, VariableSymbol variableSymbols) throws SyntaxException {
+    public void addArgs(String token, VariableSymbol variableSymbol) throws SyntaxException {
         if (argsMap.containsKey(token)) {
             throw new SyntaxException(SyntaxError.DuplicateSymbol);
         }
-        argsMap.put(token, variableSymbols);
-        return true;
+        argsMap.put(token, variableSymbol);
+        args.add(variableSymbol);
+    }
+
+    public int getArgsSize() {
+        return args.size();
     }
 }
