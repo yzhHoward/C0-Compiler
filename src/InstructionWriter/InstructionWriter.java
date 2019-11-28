@@ -10,8 +10,10 @@ public class InstructionWriter {
     private ArrayList<String> functions = new ArrayList<>();
     private ArrayList<ArrayList<String>> functionList = new ArrayList<>();
     private ArrayList<String> function;
+    private Assembler assembler;
 
     public InstructionWriter() {
+        assembler = new Assembler();
     }
 
     public InstructionWriter(String outputPath) {
@@ -20,6 +22,7 @@ public class InstructionWriter {
         } catch (IOException e) {
             e.printStackTrace();
         }
+        assembler = new Assembler();
     }
 
     public int writeConstants(String string) {
@@ -135,5 +138,9 @@ public class InstructionWriter {
                 System.out.println(function.get(j));
             }
         }
+    }
+
+    public void assemble() {
+        assembler.output(constants, start, functions, functionList);
     }
 }

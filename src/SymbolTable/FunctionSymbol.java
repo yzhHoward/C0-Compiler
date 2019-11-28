@@ -25,6 +25,13 @@ public class FunctionSymbol extends Symbol {
         args.add(variableSymbol);
     }
 
+    public DataType getArgDataTypeByIndex(int index) {
+        if (index >= getArgsSize()) {
+            return null;
+        }
+        return args.get(index).dataType;
+    }
+
     public int getArgsSize() {
         return args.size();
     }

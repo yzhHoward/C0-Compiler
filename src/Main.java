@@ -32,5 +32,6 @@ public class Main {
         String source = "./1.c";
         String outputPath = "./1.txt";
         syntaxAnalyze(source);
+//        syntaxAnalyze(source, outputPath);
     }
 }

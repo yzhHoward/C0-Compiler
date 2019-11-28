@@ -82,6 +82,7 @@ public class SyntaxAnalyzer {
         try {
             program();
             instructionWriter.output();
+//            instructionWriter.assemble();
         } catch (SyntaxException e) {
             System.out.println(e.getMessage() + " at " + lineOffset + ":" + wordOffset + " word: " + token);
         }
@@ -507,8 +508,8 @@ public class SyntaxAnalyzer {
     private void printStatement() throws SyntaxException {
         int stringLiteralIndex;
         read();
-        if (wordSymbol != WordSymbol.Scan) {
-            throw new SyntaxException(SyntaxError.InvalidScan);
+        if (wordSymbol != WordSymbol.Print) {
+            throw new SyntaxException(SyntaxError.InvalidPrint);
         }
         read();
         if (wordSymbol != WordSymbol.LeftParenthesis) {
@@ -520,6 +521,7 @@ public class SyntaxAnalyzer {
             instructionWriter.write(level, Instructions.loadc, stringLiteralIndex);
             instructionWriter.write(level, Instructions.sprint);
         } else {
+            unread();
             boolean convertToChar = expression();
             if (convertToChar) {
                 instructionWriter.write(level, Instructions.cprint);
@@ -543,8 +545,8 @@ public class SyntaxAnalyzer {
         variableSymbol = findVariableSymbol(token);
         if (variableSymbol == null) {
             throw new SyntaxException(SyntaxError.SymbolNotFound);
-        } else if (!variableSymbol.isInitialized()) {
-            throw new SyntaxException(SyntaxError.UninitializedVariable);
+        } else if (variableSymbol.symbolType == SymbolType.Constant) {
+            throw new SyntaxException(SyntaxError.AssignToConstant);
         }
         read();
         if (wordSymbol != WordSymbol.Assign) {
@@ -565,12 +567,12 @@ public class SyntaxAnalyzer {
             read();
             if (wordSymbol == WordSymbol.Plus) {
                 convertToChar = false;
-                instructionWriter.write(level, Instructions.iadd);
                 multiplicativeExpression();
+                instructionWriter.write(level, Instructions.iadd);
             } else if (wordSymbol == WordSymbol.Minus) {
                 convertToChar = false;
-                instructionWriter.write(level, Instructions.isub);
                 multiplicativeExpression();
+                instructionWriter.write(level, Instructions.isub);
             } else {
                 unread();
                 break;
@@ -585,12 +587,12 @@ public class SyntaxAnalyzer {
             read();
             if (wordSymbol == WordSymbol.Multi) {
                 convertToChar = false;
-                instructionWriter.write(level, Instructions.imul);
                 castExpression();
+                instructionWriter.write(level, Instructions.imul);
             } else if (wordSymbol == WordSymbol.Div) {
                 convertToChar = false;
-                instructionWriter.write(level, Instructions.idiv);
                 castExpression();
+                instructionWriter.write(level, Instructions.idiv);
             } else {
                 unread();
                 break;
@@ -613,7 +615,10 @@ public class SyntaxAnalyzer {
                     convertToChar = true;
                     convertToInt = false;
                 } else {
-                    throw new SyntaxException(SyntaxError.ExpectTypeSpecifier);
+                    unread();
+                    unread();
+                    break;
+//                    throw new SyntaxException(SyntaxError.ExpectTypeSpecifier);
                 }
                 read();
                 if (wordSymbol != WordSymbol.RightParenthesis) {
@@ -682,6 +687,7 @@ public class SyntaxAnalyzer {
     // 函数调用语句
     private void callFunction() throws SyntaxException {
         FunctionSymbol functionSymbol;
+        int params = 0;
         read();
         if (wordSymbol != WordSymbol.Identifier) {
             throw new SyntaxException(SyntaxError.ExpectIdentifier);
@@ -699,6 +705,14 @@ public class SyntaxAnalyzer {
             unread();
             while (true) {
                 expression();
+                if (params < functionSymbol.getArgsSize()) {
+                    if (functionSymbol.getArgDataTypeByIndex(params) == DataType.Char) {
+                        instructionWriter.write(level, Instructions.i2c);
+                    }
+                } else {
+                    throw new SyntaxException(SyntaxError.InvalidCall);
+                }
+                ++params;
                 read();
                 if (wordSymbol == WordSymbol.RightParenthesis) {
                     break;
@@ -706,6 +720,9 @@ public class SyntaxAnalyzer {
                     throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
                 }
             }
+        }
+        if (params != functionSymbol.getArgsSize()) {
+            throw new SyntaxException(SyntaxError.InvalidCall);
         }
         instructionWriter.write(level, Instructions.call, functionSymbol.offset);
     }
