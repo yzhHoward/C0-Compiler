@@ -27,7 +27,7 @@ public class InstructionWriter {
 
     public int writeConstants(String string) {
         int index = constants.size();
-        constants.add(index + " S \"" + string + '"');
+        constants.add("S \"" + string + '"');
         return index;
     }
 
@@ -114,8 +114,10 @@ public class InstructionWriter {
 
     public void output() {
         System.out.println(".constants");
-        for (String string : constants) {
-            System.out.println(string);
+        for (int i = 0; i < constants.size(); ++i) {
+            System.out.print(i);
+            System.out.print(' ');
+            System.out.println(constants.get(i));
         }
         System.out.println(".start:");
         for (int i = 0; i < start.size(); ++i) {

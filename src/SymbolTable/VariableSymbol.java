@@ -9,6 +9,10 @@ public class VariableSymbol extends Symbol {
         this.initialized = initialized;
     }
 
+    public void setInitialized() {
+        this.initialized = true;
+    }
+
     public boolean isInitialized() {
         return initialized;
     }

@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PushbackReader;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,8 +16,9 @@ public class WordAnalyzer {
     public int count = 0;
     public WordSymbol symbol;
     public int lineOffset = 1;
-    public int wordOffset = 0;
+    public int wordOffset = 1;
     private char ch;
+    private ArrayList<Integer> wordOffsetOfLine = new ArrayList<>();
     private Map<String, WordSymbol> reserves = new HashMap<String, WordSymbol>() {
         {
             put("const", WordSymbol.Const);
@@ -97,6 +99,10 @@ public class WordAnalyzer {
         try {
             reader.unread(ch);
             --wordOffset;
+            if (ch == '\n') {
+                --lineOffset;
+                getWordOffset();
+            }
         } catch (IOException e) {
             System.out.println("不能unread!");
             e.printStackTrace();
@@ -105,11 +111,32 @@ public class WordAnalyzer {
 
     private void read() {
         try {
+            boolean newLine = false;
+            if (ch == '\n') {
+                newLine = true;
+            }
             ch = (char) reader.read();
             ++wordOffset;
+            if (newLine) {
+                addWordOffset();
+                ++lineOffset;
+                wordOffset = 1;
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void addWordOffset() {
+        if (lineOffset - 1 < wordOffsetOfLine.size()) {
+            wordOffsetOfLine.set(lineOffset - 1, wordOffset);
+        } else {
+            wordOffsetOfLine.add(wordOffset);
+        }
+    }
+
+    private void getWordOffset() {
+        wordOffset = wordOffsetOfLine.get(lineOffset - 1);
     }
 
     private WordSymbol isReserved() {
@@ -157,6 +184,8 @@ public class WordAnalyzer {
                     }
                 } else if (isLetter()) {
                     throw new WordException(WordError.InvalidIdentifier);
+                } else {
+                    unread();
                 }
                 symbol = WordSymbol.UnsignedInt;
             } else {
@@ -244,7 +273,6 @@ public class WordAnalyzer {
                 read();
             }
             symbol = WordSymbol.CharLiteral;
-            System.out.println(token);
         } else if (ch == '=') {
             catToken();
             read();
@@ -368,12 +396,7 @@ public class WordAnalyzer {
     }
 
     private boolean isNewLine() {
-        if (ch == '\n') {
-            ++lineOffset;
-            wordOffset = 0;
-            return true;
-        }
-        return false;
+        return ch == '\n';
     }
 
     public boolean isEscapeChar() {

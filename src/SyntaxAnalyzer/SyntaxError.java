@@ -30,6 +30,7 @@ public enum SyntaxError {
     InvalidPrint,
     InvalidCall,
     InvalidCondition,
+    InconsistentNumberOfParameters,
     LessArguments,
     MoreArguments,
     AssignToConstant,

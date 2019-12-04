@@ -47,7 +47,7 @@ public class SymbolTable {
                                             int offset, int lineOffset, int wordOffset) throws SyntaxException {
         HashMap<String, Symbol> symbolTable;
         FunctionSymbol functionSymbol;
-        symbolTable = tables.get(1);
+        symbolTable = tables.get(0);
         if (!symbolTable.containsKey(functionName)) {
             throw new SyntaxException(SyntaxError.SymbolNotFound);
         }

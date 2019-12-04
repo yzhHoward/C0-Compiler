@@ -1,8 +1,17 @@
-int a=1;
-int main()
-{
-    /* 我的第一个 C 程序 */
-    print("Hello, World! \n");
- ;;;;;
-    return 0;;;;;;;;;;
+int x=7;
+
+char fun(int num) {
+    int rtv = num/2;
+    return rtv+1;
+}
+
+void main() {
+    char m = fun(x);
+    const int e12=1;
+    fun(x);
+    x = 7;
+    while(x==7)
+    print(5);
+    print(1);
+    return;
 }
