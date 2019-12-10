@@ -313,6 +313,10 @@ public class SyntaxAnalyzer {
         } else if (wordSymbol == WordSymbol.LeftBrace) {
             ++level;
             nextLevel();
+            int variableOffset = 0;
+            while (variableDeclaration(variableOffset)) {
+                ++variableOffset;
+            }
             statementSequence(functionSymbol);
             read();
             if (wordSymbol == WordSymbol.RightBrace) {
