@@ -10,12 +10,10 @@ void main() {
     const int e12=1;
     fun(x);
     x = 7;
-    while(x==7)
+    while(x==7) {
+        int m = 5;
+        print(m);
+    }
     print(5);
-    print("char");
-    print("void");
-    print("main");
-    print("return");
-    print("print");
     return;
 }

@@ -148,7 +148,7 @@ public class SyntaxAnalyzer {
             identifier = token;
             lineOffsetOfIdentifier = lineOffset;
             wordOffsetOfIdentifier = wordOffset;
-            if (findVariableSymbol(identifier) != null) {
+            if (findVariableSymbol(identifier, level) != null) {
                 throw new SyntaxException(SyntaxError.DuplicateSymbol);
             }
             read();
