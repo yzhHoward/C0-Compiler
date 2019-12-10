@@ -18,6 +18,7 @@ public enum SyntaxError {
     MissingParameter,
     MissingFunctionBody,
     InvalidSentenceSequence,
+    InvalidCast,
     InvalidExpression,
     InvalidFactor,
     InvalidIfStatement,

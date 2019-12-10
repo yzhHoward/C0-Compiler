@@ -171,7 +171,7 @@ public class SyntaxAnalyzer {
                 return false;
             } else {
                 unread();
-                instructionWriter.write(level, Instructions.ipush, 0);
+                instructionWriter.write(level, Instructions.snew, 1);
             }
             read();
             if (wordSymbol == WordSymbol.Semicolon) {
@@ -223,9 +223,10 @@ public class SyntaxAnalyzer {
             if (functionSymbol.dataType == DataType.Void) {
                 instructionWriter.write(level, Instructions.ret);
             } else if (functionSymbol.dataType == DataType.Char) {
-                instructionWriter.write(level, Instructions.i2c);
+                instructionWriter.write(level, Instructions.bipush, 0);
                 instructionWriter.write(level, Instructions.iret);
             } else {
+                instructionWriter.write(level, Instructions.ipush, 0);
                 instructionWriter.write(level, Instructions.iret);
             }
             read();
@@ -662,6 +663,8 @@ public class SyntaxAnalyzer {
                 } else if (wordSymbol == WordSymbol.Char) {
                     convertToChar = true;
                     convertToInt = false;
+                } else if (wordSymbol == WordSymbol.Void) {
+                    throw new SyntaxException(SyntaxError.InvalidCast);
                 } else {
                     unread();
                     unread();
@@ -723,6 +726,9 @@ public class SyntaxAnalyzer {
                 instructionWriter.write(level, Instructions.loada, level - variableSymbol.level, variableSymbol.offset);
                 instructionWriter.write(level, Instructions.iload);
             } else if (functionSymbol != null) {
+                if (functionSymbol.dataType == DataType.Void) {
+                    throw new SyntaxException(SyntaxError.InvalidCast);
+                }
                 unread();
                 callFunction();
             } else {

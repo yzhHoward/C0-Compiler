@@ -210,8 +210,16 @@ public class WordAnalyzer {
                     if (ch == 'x') {
                         String str = "";
                         read();
+                        if (!isHexadecimalDigit()) {
+                            catToken();
+                            throw new WordException(WordError.InvalidStringLiteral);
+                        }
                         str += ch;
                         read();
+                        if (!isHexadecimalDigit()) {
+                            catToken();
+                            throw new WordException(WordError.InvalidStringLiteral);
+                        }
                         str += ch;
                         ch = (char) Integer.parseInt(str, 16);
                     } else if (isEscapeChar()) {
@@ -227,6 +235,7 @@ public class WordAnalyzer {
                                 break;
                         }
                     } else {
+                        catToken();
                         throw new WordException(WordError.InvalidEscape);
                     }
                 } else if (ch == 65535) {
@@ -243,12 +252,20 @@ public class WordAnalyzer {
             if (ch == '\\') {
                 read();
                 if (ch == 'x') {
-                    String str = "0x";
+                    String str = "";
                     read();
+                    if (!isHexadecimalDigit()) {
+                        catToken();
+                        throw new WordException(WordError.InvalidCharLiteral);
+                    }
                     str += ch;
                     read();
+                    if (!isHexadecimalDigit()) {
+                        catToken();
+                        throw new WordException(WordError.InvalidCharLiteral);
+                    }
                     str += ch;
-                    ch = (char) Integer.parseInt(str);
+                    ch = (char) Integer.parseInt(str, 16);
                 } else if (isEscapeChar()) {
                     switch (ch) {
                         case 'n':
@@ -262,15 +279,28 @@ public class WordAnalyzer {
                             break;
                     }
                 } else {
+                    catToken();
                     throw new WordException(WordError.InvalidEscape);
                 }
                 catToken();
                 read();
+                if (ch != '\'') {
+                    catToken();
+                    throw new WordException(WordError.InvalidCharLiteral);
+                }
             } else if (ch == '\'') {
-                read();
+                throw new WordException(WordError.InvalidCharLiteral);
+            } else if (ch == 65535) {
+                throw new WordException(WordError.InvalidCharLiteral);
+            } else if (ch != '\t' && (ch <= 31 || ch >= 127)) {
+                throw new WordException(WordError.InvalidCharLiteral);
             } else {
                 catToken();
                 read();
+                if (ch != '\'') {
+                    catToken();
+                    throw new WordException(WordError.InvalidCharLiteral);
+                }
             }
             symbol = WordSymbol.CharLiteral;
         } else if (ch == '=') {

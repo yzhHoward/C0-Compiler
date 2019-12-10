@@ -12,6 +12,10 @@ void main() {
     x = 7;
     while(x==7)
     print(5);
-    print(1);
+    print("char");
+    print("void");
+    print("main");
+    print("return");
+    print("print");
     return;
 }
