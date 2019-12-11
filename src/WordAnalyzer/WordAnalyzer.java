@@ -47,7 +47,7 @@ public class WordAnalyzer {
         try {
             reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
+            System.out.println("目标文件不存在！");
         }
     }
 
@@ -105,7 +105,6 @@ public class WordAnalyzer {
             }
         } catch (IOException e) {
             System.out.println("不能unread!");
-            e.printStackTrace();
         }
     }
 
@@ -123,7 +122,7 @@ public class WordAnalyzer {
                 wordOffset = 1;
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("读出错！");
         }
     }
 

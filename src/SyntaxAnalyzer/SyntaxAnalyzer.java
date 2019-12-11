@@ -67,7 +67,7 @@ public class SyntaxAnalyzer {
         }
     }
 
-    public void start() {
+    public void start(boolean text) {
         try {
             wordAnalyzer.getsym();
             while (wordAnalyzer.symbol != WordSymbol.EOF) {
@@ -82,8 +82,11 @@ public class SyntaxAnalyzer {
         nextLevel();
         try {
             program();
-            instructionWriter.output();
-            // instructionWriter.assemble();
+            if (text) {
+                instructionWriter.output();
+            } else {
+                instructionWriter.assemble();
+            }
         } catch (SyntaxException e) {
             System.out.println(e.getMessage() + " at " + lineOffset + ":" + wordOffset + " word: " + token);
         }

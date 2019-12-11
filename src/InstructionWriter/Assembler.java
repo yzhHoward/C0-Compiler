@@ -16,7 +16,7 @@ public class Assembler {
             functions(functions, functionList);
             bufferedOutputStream.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("不能写入文件！");
         }
     }
 

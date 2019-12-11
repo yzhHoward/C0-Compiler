@@ -20,7 +20,7 @@ public class InstructionWriter {
         try {
             System.setOut(new PrintStream(outputPath));
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("不能写入文件！");
         }
         assembler = new Assembler();
     }
