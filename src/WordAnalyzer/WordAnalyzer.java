@@ -186,7 +186,6 @@ public class WordAnalyzer {
                 } else {
                     unread();
                 }
-                symbol = WordSymbol.UnsignedInt;
             } else {
                 while (isDigit()) {
                     catToken();
@@ -199,8 +198,8 @@ public class WordAnalyzer {
                 if (checkIntOverFlow()) {
                     throw new WordException(WordError.NumberOutOfRange);
                 }
-                symbol = WordSymbol.UnsignedInt;
             }
+            symbol = WordSymbol.UnsignedInt;
         } else if (ch == '"') {
             read();
             while (ch != '"') {

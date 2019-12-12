@@ -33,31 +33,11 @@ public class cc0 {
         String outputPath = "./1.txt";
         boolean text = true;
         boolean output = false;
-        for (int i = 0; i < args.length; ++i) {
-            switch (args[i]) {
-                case "-s":
-                    text = true;
-                    break;
-                case "-c":
-                    text = false;
-                    break;
-                case "-h":
-                    System.out.println("  -s        将输入的 c0 源代码翻译为文本汇编文件\n" +
-                            "  -c        将输入的 c0 源代码翻译为二进制目标文件\n" +
-                            "  -h        显示关于编译器使用的帮助\n" +
-                            "  -o file   输出到指定的文件 file");
-                    break;
-                case "-o":
-                    if (i + 1 < args.length) {
-                        output = true;
-                        outputPath = args[i + 1];
-                    } else {
-                        System.out.println("参数错误");
-                    }
-                    break;
-                default:
-                    source = args[i];
-            }
+        boolean debug = true;
+        int i = 0;
+        if (debug) {
+            syntaxAnalyze(source, outputPath, text);
+            return;
         }
         if (args.length == 0) {
             System.out.println("  -s        将输入的 c0 源代码翻译为文本汇编文件\n" +
@@ -65,6 +45,34 @@ public class cc0 {
                     "  -h        显示关于编译器使用的帮助\n" +
                     "  -o file   输出到指定的文件 file");
         } else {
+            switch (args[i]) {
+                case "-s":
+                    text = true;
+                    ++i;
+                    break;
+                case "-c":
+                    text = false;
+                    ++i;
+                    break;
+                case "-h":
+                    System.out.println("  -s        将输入的 c0 源代码翻译为文本汇编文件\n" +
+                            "  -c        将输入的 c0 源代码翻译为二进制目标文件\n" +
+                            "  -h        显示关于编译器使用的帮助\n" +
+                            "  -o file   输出到指定的文件 file");
+                    return;
+                default:
+                    System.out.println("参数错误");
+                    return;
+            }
+            source = args[i++];
+            if (i == args.length) {
+                output = false;
+            } else if (i + 2 == args.length) {
+                output = true;
+                outputPath = args[i + 1];
+            } else {
+                System.out.println("参数错误");
+            }
             if (output) {
                 syntaxAnalyze(source, outputPath, text);
             } else {
