@@ -27,6 +27,9 @@ public class InstructionWriter {
 
     public int writeConstants(String string) {
         int index = constants.size();
+        if (constants.contains("S \"" + string + '"')) {
+            return constants.indexOf("S \"" + string + '"');
+        }
         constants.add("S \"" + string + '"');
         return index;
     }
@@ -78,6 +81,13 @@ public class InstructionWriter {
 
     public void insert(int index, Instructions instructions, int x) {
         function.add(index, instructions.toString() + ' ' + x);
+        for (int i = index + 1; i < function.size(); ++i) {
+            String[] strings = function.get(i).split(" ");
+            String string = strings[0];
+            if (string.equals("jmp") || string.equals("je") || string.equals("jne") || string.equals("jl") || string.equals("jge") || string.equals("jg") || string.equals("jle")) {
+                function.set(i, string + " " + (Integer.parseInt(strings[1]) + 1));
+            }
+        }
     }
 
     private void writeStart(Instructions instructions) {
@@ -89,7 +99,7 @@ public class InstructionWriter {
     }
 
     private void writeStart(Instructions instructions, int x, int y) {
-        start.add(instructions.toString() + ' ' + x + ' ' + y);
+        start.add(instructions.toString() + ' ' + x + ',' + y);
     }
 
     private void writeStart(Instructions instructions, String x) {
@@ -105,7 +115,7 @@ public class InstructionWriter {
     }
 
     private void writeFunction(Instructions instructions, int x, int y) {
-        function.add(instructions.toString() + ' ' + x + ' ' + y);
+        function.add(instructions.toString() + ' ' + x + ',' + y);
     }
 
     private void writeFunction(Instructions instructions, String x) {
@@ -113,7 +123,7 @@ public class InstructionWriter {
     }
 
     public void output() {
-        System.out.println(".constants");
+        System.out.println(".constants:");
         for (int i = 0; i < constants.size(); ++i) {
             System.out.print(i);
             System.out.print(' ');

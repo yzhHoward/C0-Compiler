@@ -9,6 +9,7 @@ import java.util.HashMap;
 public class FunctionSymbol extends Symbol {
     private HashMap<String, VariableSymbol> argsMap;
     private ArrayList<VariableSymbol> args;
+    private int variableOffset; // 函数内定义的变量偏移
 
     public FunctionSymbol(String name, SymbolType symbolType, DataType dataType,
                           int level, int offset, int lineOffset, int wordOffset) {
@@ -34,5 +35,13 @@ public class FunctionSymbol extends Symbol {
 
     public int getArgsSize() {
         return args.size();
+    }
+
+    public int getVariableOffset() {
+        return variableOffset;
+    }
+
+    public void setVariableOffset(int variableOffset) {
+        this.variableOffset = variableOffset;
     }
 }

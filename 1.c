@@ -1,19 +1,30 @@
-int x=7;
+int pi = 3;
+int N = 0xbabe;
+int max;
 
-char fun(int num) {
-    int rtv = num/2;
-    return rtv+1;
+int fib(int n) {
+	if (n <= 0) return 0;
+	else if (n == 1) return 1;
+	else return fib(n-2) + fib(n-1);
 }
 
-void main() {
-    char m = fun(x);
-    const int e12=1;
-    fun(x);
-    x = 7;
-    while(x==7) {
-        int m = 5;
-        print(m);
-    }
-    print(5);
-    return;
+int main() {
+	int i = 0;
+	int f;
+	scan(max);
+	pi = pi * 3;
+	if (pi < max) {
+		max = pi;
+	}
+	while(i < max) {
+		f = fib(i);
+		if (f < N) {
+			print("fib",i,"=",f,"<",N);
+		}
+		else {
+			print("fib",i,"=",f,">=",N);
+		}
+		i = i+1;
+	}
+	return 0;
 }

@@ -86,7 +86,7 @@ public class Assembler {
     }
 
     private void instructions(String string) throws IOException {
-        String[] strings = string.split(" ");
+        String[] strings = string.split("[, ]");
         if (strings.length == 1) {
             switch (strings[0]) {
                 case "nop":
@@ -225,6 +225,7 @@ public class Assembler {
                     bufferedOutputStream.write(0xb2);
                     break;
                 default:
+                    System.out.println(strings[0]);
                     System.out.println("Instruction not found!");
             }
         } else if (strings.length == 2) {

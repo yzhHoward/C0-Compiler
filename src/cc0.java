@@ -31,7 +31,7 @@ public class cc0 {
     public static void main(String[] args) {
         String source = "./1.c";
         String outputPath = "./1.txt";
-        boolean text = true;
+        boolean text = false;
         boolean output = false;
         boolean debug = true;
         int i = 0;

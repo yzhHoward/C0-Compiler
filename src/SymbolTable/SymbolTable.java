@@ -3,18 +3,18 @@ package SymbolTable;
 import SyntaxAnalyzer.SyntaxError;
 import SyntaxAnalyzer.SyntaxException;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 
 public class SymbolTable {
-    public static LinkedList<HashMap<String, Symbol>> tables = new LinkedList<>();
+    public static ArrayList<HashMap<String, Symbol>> tables = new ArrayList<>();
 
     public static void nextLevel() {
         tables.add(new HashMap<>());
     }
 
     public static void prevLevel() {
-        tables.removeLast();
+        tables.remove(tables.size() - 1);
     }
 
     public static void insertVariableSymbol(int level, String token, boolean initialized, SymbolType symbolType, DataType dataType,
