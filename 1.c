@@ -26,5 +26,7 @@ int main() {
 		}
 		i = i+1;
 	}
+	print("123\n");
+	print("123");
 	return 0;
 }

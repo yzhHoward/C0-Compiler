@@ -33,7 +33,7 @@ public class cc0 {
         String outputPath = "./1.txt";
         boolean text = false;
         boolean output = false;
-        boolean debug = true;
+        boolean debug = false;
         int i = 0;
         if (debug) {
             syntaxAnalyze(source, outputPath, text);
@@ -72,6 +72,7 @@ public class cc0 {
                 outputPath = args[i + 1];
             } else {
                 System.out.println("参数错误");
+                return;
             }
             if (output) {
                 syntaxAnalyze(source, outputPath, text);

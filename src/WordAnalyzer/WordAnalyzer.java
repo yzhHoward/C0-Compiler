@@ -45,9 +45,10 @@ public class WordAnalyzer {
 
     public WordAnalyzer(String source) {
         try {
-            reader = new PushbackReader(new FileReader(System.getProperty("user.dir") + source));
+            reader = new PushbackReader(new FileReader(source));
         } catch (FileNotFoundException e) {
             System.out.println("目标文件不存在！");
+            System.exit(-1);
         }
     }
 

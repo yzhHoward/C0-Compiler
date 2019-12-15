@@ -76,7 +76,7 @@ public class SyntaxAnalyzer {
             }
             buf.add(new NextWord(wordAnalyzer.token, wordAnalyzer.symbol, wordAnalyzer.lineOffset, wordAnalyzer.wordOffset));
         } catch (WordException e) {
-            System.out.println(e.getMessage() + " at " + wordAnalyzer.lineOffset + ":" + (wordAnalyzer.wordOffset - wordAnalyzer.token.length() + 1) + " word: " + wordAnalyzer.token);
+            System.err.println(e.getMessage() + " at " + wordAnalyzer.lineOffset + ":" + (wordAnalyzer.wordOffset - wordAnalyzer.token.length() + 1) + " word: " + wordAnalyzer.token);
             return;
         }
         nextLevel();
@@ -88,7 +88,7 @@ public class SyntaxAnalyzer {
                 instructionWriter.assemble();
             }
         } catch (SyntaxException e) {
-            System.out.println(e.getMessage() + " at " + lineOffset + ":" + wordOffset + " word: " + token);
+            System.err.println(e.getMessage() + " at " + lineOffset + ":" + wordOffset + " word: " + token);
         }
     }
 
@@ -752,6 +752,8 @@ public class SyntaxAnalyzer {
             } else {
                 throw new SyntaxException(SyntaxError.SymbolNotFound);
             }
+        } else {
+            throw new SyntaxException(SyntaxError.InvalidExpression);
         }
         return false;
     }
