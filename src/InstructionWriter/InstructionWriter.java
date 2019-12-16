@@ -130,27 +130,26 @@ public class InstructionWriter {
         for (int i = 0; i < constants.size(); ++i) {
             System.out.print(i);
             System.out.print(' ');
-            String[] strings = constants.get(i).split(" ");
-            if (strings[0].equals("S")) {
-                System.out.print(strings[0]);
+            String string = constants.get(i);
+            if (string.charAt(0) == 'S') {
+                System.out.print(string.charAt(0));
                 System.out.print(' ');
-                for (int j = 0; j < strings[1].length(); ++j) {
-                    if (strings[1].charAt(j) < ' ') {
+                for (int j = 2; j < string.length(); ++j) {
+                    if (string.charAt(j) < ' ') {
                         System.out.print("\\x");
-                        String hexString = Integer.toHexString(strings[1].charAt(j));
+                        String hexString = Integer.toHexString(string.charAt(j));
                         if (hexString.length() == 1) {
                             System.out.print(0);
                         }
                         System.out.print(hexString);
                     } else {
-                        System.out.print(strings[1].charAt(j));
+                        System.out.print(string.charAt(j));
                     }
                 }
                 System.out.println();
             } else {
-                System.out.println(constants.get(i));
+                System.out.println(string);
             }
-
         }
         System.out.println(".start:");
         for (int i = 0; i < start.size(); ++i) {
