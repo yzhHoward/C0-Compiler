@@ -375,6 +375,10 @@ public class WordAnalyzer {
             read();
             if (ch == '/') {
                 while (ch != '\n') {
+                    if (ch == 65535) {
+                        symbol = WordSymbol.EOF;
+                        break;
+                    }
                     read();
                 }
                 getsym();

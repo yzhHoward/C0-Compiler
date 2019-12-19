@@ -30,12 +30,11 @@ public class cc0 {
 
     public static void main(String[] args) {
         String source = "./1.c";
-        String outputPath = "./1.txt";
-        boolean text = false;
-        boolean output = false;
-        boolean debug = false;
-        int i = 0;
+        String outputPath = "out";
+        boolean text = true;
+        boolean debug = true;
         if (debug) {
+            outputPath = "1.txt";
             syntaxAnalyze(source, outputPath, text);
             return;
         }
@@ -45,14 +44,12 @@ public class cc0 {
                     "  -h        显示关于编译器使用的帮助\n" +
                     "  -o file   输出到指定的文件 file");
         } else {
-            switch (args[i]) {
+            switch (args[0]) {
                 case "-s":
                     text = true;
-                    ++i;
                     break;
                 case "-c":
                     text = false;
-                    ++i;
                     break;
                 case "-h":
                     System.out.println("  -s        将输入的 c0 源代码翻译为文本汇编文件\n" +
@@ -61,24 +58,17 @@ public class cc0 {
                             "  -o file   输出到指定的文件 file");
                     return;
                 default:
-                    System.out.println("参数错误");
+                    System.out.println("Argument error 0!");
                     return;
             }
-            source = args[i++];
-            if (i == args.length) {
-                output = false;
-            } else if (i + 2 == args.length) {
-                output = true;
-                outputPath = args[i + 1];
-            } else {
-                System.out.println("参数错误");
+            source = args[1];
+            if (4 == args.length) {
+                outputPath = args[3];
+            } else if (3 == args.length) {
+                System.out.println("Argument error 1!");
                 return;
             }
-            if (output) {
-                syntaxAnalyze(source, outputPath, text);
-            } else {
-                syntaxAnalyze(source, text);
-            }
+            syntaxAnalyze(source, outputPath, text);
         }
     }
 }

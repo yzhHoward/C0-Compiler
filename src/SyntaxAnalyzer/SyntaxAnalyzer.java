@@ -94,8 +94,7 @@ public class SyntaxAnalyzer {
 
     // 程序
     private void program() throws SyntaxException {
-        while (variableDeclaration(startOffset)) {
-            ++startOffset;
+        while ((startOffset = variableDeclaration(startOffset)) != -1) {
         }
         while (true) {
             read();
@@ -118,7 +117,7 @@ public class SyntaxAnalyzer {
     }
 
     // 变量说明部分
-    private boolean variableDeclaration(int offset) throws SyntaxException {
+    private int variableDeclaration(int offset) throws SyntaxException {
         DataType dataType;
         SymbolType symbolType;
         String identifier;
@@ -140,7 +139,7 @@ public class SyntaxAnalyzer {
         } else {
             // 不是变量
             unread();
-            return false;
+            return -1;
         }
         while (true) {
             boolean initialized = false;
@@ -171,17 +170,17 @@ public class SyntaxAnalyzer {
                 unread();
                 unread();
                 unread();
-                return false;
+                return -1;
             } else {
                 unread();
                 instructionWriter.write(level, Instructions.bipush, 0);
             }
             read();
             if (wordSymbol == WordSymbol.Semicolon) {
-                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset, lineOffsetOfIdentifier, wordOffsetOfIdentifier);
-                return true;
+                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset++, lineOffsetOfIdentifier, wordOffsetOfIdentifier);
+                return offset;
             } else if (wordSymbol == WordSymbol.Comma) {
-                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset, lineOffsetOfIdentifier, wordOffsetOfIdentifier);
+                insertVariableSymbol(level, identifier, initialized, symbolType, dataType, offset++, lineOffsetOfIdentifier, wordOffsetOfIdentifier);
             } else {
                 throw new SyntaxException(SyntaxError.ExpectCorrectSeparator);
             }
@@ -220,8 +219,7 @@ public class SyntaxAnalyzer {
         instructionWriter.writeFunctions(functionOffset, constantIndex, functionSymbol.getArgsSize());
         read();
         if (wordSymbol == WordSymbol.LeftBrace) {
-            while (variableDeclaration(variableOffset)) {
-                ++variableOffset;
+            while ((variableOffset = variableDeclaration(variableOffset)) != -1) {
                 functionSymbol.setVariableOffset(variableOffset);
             }
             statementSequence(functionSymbol);
@@ -319,8 +317,7 @@ public class SyntaxAnalyzer {
             ++level;
             nextLevel();
             int variableOffset = functionSymbol.getVariableOffset();
-            while (variableDeclaration(variableOffset)) {
-                ++variableOffset;
+            while ((variableOffset = variableDeclaration(variableOffset)) != -1) {
                 functionSymbol.setVariableOffset(variableOffset);
             }
             statementSequence(functionSymbol);
@@ -557,6 +554,14 @@ public class SyntaxAnalyzer {
             throw new SyntaxException(SyntaxError.ExpectLeftParenthesis);
         }
         read();
+        if (wordSymbol == WordSymbol.RightParenthesis) {
+            read();
+            if (wordSymbol != WordSymbol.Semicolon) {
+                throw new SyntaxException(SyntaxError.MissingSemicolon);
+            }
+            instructionWriter.write(level, Instructions.printl);
+            return;
+        }
         if (wordSymbol == WordSymbol.StringLiteral) {
             stringLiteralIndex = instructionWriter.writeConstants(token);
             instructionWriter.write(level, Instructions.loadc, stringLiteralIndex);
