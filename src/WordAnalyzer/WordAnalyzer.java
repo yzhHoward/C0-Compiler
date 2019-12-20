@@ -341,7 +341,7 @@ public class WordAnalyzer {
                 catToken();
             } else {
                 unread();
-                symbol = WordSymbol.GreaterOrEqual;
+                symbol = WordSymbol.Greater;
             }
         } else if (ch == '+') {
             catToken();

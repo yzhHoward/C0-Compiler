@@ -317,6 +317,7 @@ public class SyntaxAnalyzer {
             ++level;
             nextLevel();
             int variableOffset = functionSymbol.getVariableOffset();
+            int oldOffset = variableOffset;
             while ((variableOffset = variableDeclaration(variableOffset)) != -1) {
                 functionSymbol.setVariableOffset(variableOffset);
             }
@@ -325,6 +326,10 @@ public class SyntaxAnalyzer {
             if (wordSymbol == WordSymbol.RightBrace) {
                 --level;
                 prevLevel();
+            }
+            if (functionSymbol.getVariableOffset() != oldOffset) {
+                instructionWriter.write(level, Instructions.popn, functionSymbol.getVariableOffset() - oldOffset);
+                functionSymbol.setVariableOffset(oldOffset);
             }
             return true;
         } else if (wordSymbol == WordSymbol.Identifier) {
@@ -754,6 +759,7 @@ public class SyntaxAnalyzer {
                 }
                 unread();
                 callFunction();
+                return functionSymbol.dataType == DataType.Char;
             } else {
                 throw new SyntaxException(SyntaxError.SymbolNotFound);
             }

@@ -32,7 +32,7 @@ public class cc0 {
         String source = "./1.c";
         String outputPath = "out";
         boolean text = true;
-        boolean debug = true;
+        boolean debug = false;
         if (debug) {
             outputPath = "1.txt";
             syntaxAnalyze(source, outputPath, text);
