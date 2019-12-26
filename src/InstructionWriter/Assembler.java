@@ -238,7 +238,7 @@ public class Assembler {
                     bufferedOutputStream.write(0x02);
                     write4(strings[1]);
                     break;
-                case "pop4":
+                case "popn":
                     bufferedOutputStream.write(0x06);
                     write4(strings[1]);
                     break;
